@@ -1,0 +1,88 @@
+# AL Build outputs
+*.app
+*.dep
+.alpackages/
+.alcache/
+.altemplates/
+.snapshots/
+.vscode/.alcache/
+.vscode/.altemplates/
+
+# User-specific files
+.history/
+*.vsix
+
+# Business Central Runtime packages
+*.rapidstart
+*.navx
+*.fob
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows specific
+nul
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+
+# Node.js (if using any JS tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Translation files (if auto-generated)
+# Uncomment if translations are generated
+# Translations/*.g.xlf
+
+# Test results
+TestResults/
+.testresults/
+*.trx
+*.coverage
+
+# Documentation build outputs
+docs/_build/
+docs/_site/
+
+# Azure DevOps
+.azuredevops/
+
+# JetBrains IDEs
+.idea/
+*.iml
+out/
+
+# Screenshots and media (optional - uncomment if needed)
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.mp4
+# *.mov
