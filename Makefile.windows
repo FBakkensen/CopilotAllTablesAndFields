@@ -1,0 +1,199 @@
+# Makefile.windows - Windows-specific configuration
+# =============================================================================
+# Windows Platform Configuration
+# =============================================================================
+
+# Windows-specific settings
+EXE_EXT := .exe
+NULL_DEVICE := nul
+
+# =============================================================================
+# AL Extension and Compiler Discovery
+# =============================================================================
+
+# Use PowerShell to find AL extension and compiler
+AL_DISCOVERY_SCRIPT := powershell -NoProfile -Command \
+	"$$alExt = Get-ChildItem -Path '$(USERPROFILE)\.vscode\extensions' -Filter 'ms-dynamics-smb.al-*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1; \
+	if ($$alExt) { \
+		$$alcPath = Get-ChildItem -Path $$alExt.FullName -Recurse -Filter 'alc.exe' | Select-Object -First 1; \
+		if ($$alcPath) { Write-Output $$alcPath.FullName } \
+	}"
+
+ALC_PATH := $(shell $(AL_DISCOVERY_SCRIPT) 2>$(NULL_DEVICE))
+
+# =============================================================================
+# Analyzer Discovery
+# =============================================================================
+
+# Read analyzer configuration from settings.json
+SETTINGS_FILE := .vscode/settings.json
+
+# Parse settings.json to get enabled analyzers
+ENABLED_ANALYZERS := $(shell powershell -NoProfile -Command \
+	"if (Test-Path '$(SETTINGS_FILE)') { \
+		try { \
+			$$json = Get-Content '$(SETTINGS_FILE)' | ConvertFrom-Json; \
+			if ($$json.'al.codeAnalyzers') { \
+				$$analyzers = $$json.'al.codeAnalyzers' | ForEach-Object { $$_.Replace('$${','').Replace('}','') }; \
+				$$analyzers -join ',' \
+			} else { \
+				'CodeCop,UICop' \
+			} \
+		} catch { \
+			Write-Host 'Error parsing settings.json:' $$_.Exception.Message; \
+			'CodeCop,UICop' \
+		} \
+	} else { \
+		'CodeCop,UICop' \
+	}")
+
+# Build analyzer paths based on settings.json configuration
+ANALYZER_DISCOVERY_SCRIPT := powershell -NoProfile -Command \
+	"$$alExt = Get-ChildItem -Path '$(USERPROFILE)\.vscode\extensions' -Filter 'ms-dynamics-smb.al-*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1; \
+	$$enabledAnalyzers = '$(ENABLED_ANALYZERS)' -split ','; \
+	$$analyzerArgs = @(); \
+	if ($$alExt -and $$enabledAnalyzers) { \
+		$$enabledAnalyzers | ForEach-Object { \
+			$$analyzerName = $$_.Trim(); \
+			if ($$analyzerName) { \
+				$$dllName = switch ($$analyzerName) { \
+					'CodeCop' { 'Microsoft.Dynamics.Nav.CodeCop.dll' } \
+					'UICop' { 'Microsoft.Dynamics.Nav.UICop.dll' } \
+					'AppSourceCop' { 'Microsoft.Dynamics.Nav.AppSourceCop.dll' } \
+					'PerTenantExtensionCop' { 'Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll' } \
+					default { $$null } \
+				}; \
+				if ($$dllName) { \
+					$$found = Get-ChildItem -Path $$alExt.FullName -Recurse -Filter $$dllName -ErrorAction SilentlyContinue | Select-Object -First 1; \
+					if ($$found) { \
+						$$analyzerArgs += '/analyzer:\"' + $$found.FullName + '\"' \
+					} \
+				} \
+			} \
+		} \
+	}; \
+	$$analyzerArgs -join ' '"
+
+ANALYZER_ARGS := $(shell $(ANALYZER_DISCOVERY_SCRIPT))
+
+# =============================================================================
+# Build Commands
+# =============================================================================
+
+# Dependency check command
+CHECK_DEPS_CMD := @powershell -NoProfile -Command \
+	"if (-not (Test-Path '$(ALC_PATH)')) { \
+		Write-Error 'AL Compiler not found. Please ensure AL extension is installed in VS Code.'; \
+		exit 1 \
+	} else { \
+		Write-Host 'AL Compiler found: $(ALC_PATH)' \
+	}"
+
+# Main build command with analyzer support
+BUILD_CMD := @powershell -NoProfile -Command \
+	"Write-Host 'Building $(APP_NAME) v$(APP_VERSION)...'; \
+	$$analyzerArgs = '$(ANALYZER_ARGS)'.Trim(); \
+	$$enabledAnalyzers = '$(ENABLED_ANALYZERS)'; \
+	if ($$analyzerArgs) { \
+		Write-Host 'Using analyzers from settings.json:'; \
+		$$enabledAnalyzers -split ',' | ForEach-Object { \
+			$$analyzer = $$_.Trim(); \
+			if ($$analyzer) { Write-Host '  - ' $$analyzer } \
+		}; \
+		Write-Host ''; \
+		& '$(ALC_PATH)' /project:'$(PROJECT_ROOT)' /out:'$(OUTPUT_PATH)' /packagecachepath:'$(PACKAGE_CACHE)' $$analyzerArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) \
+	} else { \
+		Write-Host 'No analyzers found or enabled in settings.json'; \
+		Write-Host ''; \
+		& '$(ALC_PATH)' /project:'$(PROJECT_ROOT)' /out:'$(OUTPUT_PATH)' /packagecachepath:'$(PACKAGE_CACHE)' \
+	}; \
+	if ($$LASTEXITCODE -ne 0) { \
+		Write-Host ''; \
+		Write-Host 'Build failed with errors above.' -ForegroundColor Red; \
+		exit $$LASTEXITCODE \
+	} else { \
+		Write-Host ''; \
+		Write-Host 'Build completed successfully: $(OUTPUT_FILE)' -ForegroundColor Green \
+	}"
+
+# Analysis only command - AL compiler doesn't have analyzeOnly, so we compile with analyzers and focus on analysis output
+ANALYZE_CMD := @powershell -NoProfile -Command \
+	"Write-Host 'Running analysis for $(APP_NAME)...'; \
+	$$analyzerArgs = '$(ANALYZER_ARGS)'.Trim(); \
+	if ($$analyzerArgs) { \
+		Write-Host 'Running CodeCop and UICop analysis...'; \
+		$$tempOut = [System.IO.Path]::GetTempFileName() + '.app'; \
+		& '$(ALC_PATH)' /project:'$(PROJECT_ROOT)' /out:$$tempOut /packagecachepath:'$(PACKAGE_CACHE)' $$analyzerArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries); \
+		$$exitCode = $$LASTEXITCODE; \
+		if (Test-Path $$tempOut) { Remove-Item $$tempOut -Force }; \
+		if ($$exitCode -ne 0) { \
+			Write-Host 'Analysis found issues (exit code $$exitCode)' \
+		} else { \
+			Write-Host 'Analysis completed successfully - no issues found' \
+		} \
+	} else { \
+		Write-Host 'No analyzers found. Please ensure AL extension is properly installed.'; \
+		exit 1 \
+	}"
+
+# Clean command
+CLEAN_CMD := @powershell -NoProfile -Command \
+	"if (Test-Path '$(OUTPUT_PATH)') { \
+		Remove-Item '$(OUTPUT_PATH)' -Force; \
+		Write-Host 'Removed: $(OUTPUT_FILE)' \
+	} else { \
+		Write-Host 'Nothing to clean' \
+	}"
+
+# Install command
+INSTALL_CMD := powershell -NoProfile -Command \
+	"Write-Host 'Checking Windows dependencies...'; \
+	Write-Host 'PowerShell version:' $$PSVersionTable.PSVersion; \
+	Write-Host 'Windows dependencies are available'"
+
+# Show analyzers command
+SHOW_ANALYZERS_CMD := @powershell -NoProfile -Command \
+	"Write-Host 'Settings file:' '$(SETTINGS_FILE)'; \
+	Write-Host 'Enabled analyzers from settings:' '$(ENABLED_ANALYZERS)'; \
+	Write-Host ''; \
+	$$alExt = Get-ChildItem -Path '$(USERPROFILE)\.vscode\extensions' -Filter 'ms-dynamics-smb.al-*' | Sort-Object LastWriteTime -Descending | Select-Object -First 1; \
+	if ($$alExt) { \
+		Write-Host 'AL Extension found:' $$alExt.FullName; \
+		$$analyzers = @('Microsoft.Dynamics.Nav.CodeCop.dll', 'Microsoft.Dynamics.Nav.UICop.dll', 'Microsoft.Dynamics.Nav.AppSourceCop.dll', 'Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll'); \
+		$$found = @(); \
+		$$analyzers | ForEach-Object { \
+			$$analyzer = Get-ChildItem -Path $$alExt.FullName -Recurse -Filter $$_ -ErrorAction SilentlyContinue | Select-Object -First 1; \
+			if ($$analyzer) { \
+				$$found += $$_; \
+				Write-Host 'Found analyzer:' $$analyzer.FullName \
+			} else { \
+				Write-Host 'Missing analyzer:' $$_ \
+			} \
+		}; \
+		if ($$found.Count -gt 0) { \
+			Write-Host 'Available analyzers:' ($$found -join ', ') \
+		} else { \
+			Write-Host 'No analyzers found in AL extension' \
+		} \
+	} else { \
+		Write-Host 'AL Extension not found' \
+	}"
+
+# Show config command
+SHOW_CONFIG_CMD := @powershell -NoProfile -Command \
+	"Write-Host 'AL Compiler:' '$(ALC_PATH)'; \
+	Write-Host 'Settings File:' '$(SETTINGS_FILE)'; \
+	Write-Host 'Enabled Analyzers:' '$(ENABLED_ANALYZERS)'; \
+	Write-Host ''; \
+	Write-Host 'Analyzer Paths:'; \
+	$$analyzerArgs = '$(ANALYZER_ARGS)'; \
+	if ($$analyzerArgs) { \
+		$$analyzerArgs -split '/analyzer:' | Where-Object { $$_ } | ForEach-Object { \
+			$$path = $$_.Trim('\"'); \
+			$$name = [System.IO.Path]::GetFileName($$path) -replace 'Microsoft\.Dynamics\.Nav\.', '' -replace '\.dll', ''; \
+			Write-Host '  - ' $$name ':' $$path \
+		} \
+	} else { \
+		Write-Host '  (No analyzers configured)' \
+	}"
+

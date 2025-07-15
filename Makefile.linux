@@ -1,0 +1,154 @@
+# Makefile.linux - Linux-specific configuration
+# =============================================================================
+# Linux Platform Configuration
+# =============================================================================
+
+# Linux-specific paths and commands
+EXE_EXT :=
+ALEXTENSION_BASE := $(HOME)/.vscode-server/extensions
+NULL_DEVICE := /dev/null
+
+# =============================================================================
+# JSON Parsing (using jq)
+# =============================================================================
+
+# Check if jq is available
+JQ_AVAILABLE := $(shell command -v jq >/dev/null 2>&1 && echo "yes" || echo "no")
+
+# JSON parsing command
+ifeq ($(JQ_AVAILABLE),yes)
+    JSON_PARSE_CMD = jq -r
+else
+    # Fallback using basic shell tools (less reliable)
+    JSON_PARSE_CMD = grep -o '"$1"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4
+endif
+
+# Sanitize filename for Linux
+SANITIZE_CMD = sed 's/[\\/:*?"<>|]//g'
+
+# =============================================================================
+# AL Extension Discovery
+# =============================================================================
+
+# Find AL extension path
+AL_EXT_PATH := $(shell find "$(ALEXTENSION_BASE)" -maxdepth 1 -name "ms-dynamics-smb.al-*" -type d 2>$(NULL_DEVICE) | sort -V | tail -1)
+
+# Find AL compiler
+ALC_PATH := $(AL_EXT_PATH)/bin/linux/alc
+
+# =============================================================================
+# Analyzer Discovery
+# =============================================================================
+
+# Analyzer DLLs to find
+ANALYZER_DLLS := Microsoft.Dynamics.Nav.CodeCop.dll Microsoft.Dynamics.Nav.UICop.dll Microsoft.Dynamics.Nav.AppSourceCop.dll
+
+# Find analyzer paths
+ANALYZER_PATHS := $(shell \
+    for dll in $(ANALYZER_DLLS); do \
+        find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>$(NULL_DEVICE) | head -1 | \
+        while read path; do \
+            if [ -n "$$path" ]; then \
+                echo -n "/analyzer:\"$$path\" "; \
+            fi; \
+        done; \
+    done)
+
+ANALYZER_ARGS := $(ANALYZER_PATHS)
+
+# =============================================================================
+# Build Commands
+# =============================================================================
+
+# Dependency check command
+CHECK_DEPS_CMD = \
+	if [ ! -f "$(ALC_PATH)" ]; then \
+		echo "Error: AL Compiler not found at $(ALC_PATH)" >&2; \
+		exit 1; \
+	fi; \
+	if [ "$(JQ_AVAILABLE)" = "no" ]; then \
+		echo "Warning: jq not found. JSON parsing may be unreliable." >&2; \
+		echo "Install jq: sudo apt-get install jq" >&2; \
+	fi; \
+	if [ ! -x "$(ALC_PATH)" ]; then \
+		echo "Making AL compiler executable..."; \
+		chmod +x "$(ALC_PATH)"; \
+	fi; \
+	echo "AL Compiler found: $(ALC_PATH)"
+
+# Main build command
+BUILD_CMD = \
+	"$(ALC_PATH)" \
+		"/project:$(PROJECT_ROOT)" \
+		"/out:$(OUTPUT_PATH)" \
+		"/packagecachepath:$(PACKAGE_CACHE)" \
+		$(ANALYZER_ARGS); \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "##[error]Compilation failed with exit code $$EXIT_CODE" >&2; \
+		exit $$EXIT_CODE; \
+	else \
+		echo "Compilation completed successfully: $(OUTPUT_FILE)"; \
+	fi
+
+# Analysis only command
+ANALYZE_CMD = \
+	"$(ALC_PATH)" \
+		"/project:$(PROJECT_ROOT)" \
+		"/packagecachepath:$(PACKAGE_CACHE)" \
+		$(ANALYZER_ARGS) \
+		"/analyzer-only"; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "##[error]Analysis failed with exit code $$EXIT_CODE" >&2; \
+		exit $$EXIT_CODE; \
+	else \
+		echo "Analysis completed successfully"; \
+	fi
+
+# Clean command
+CLEAN_CMD = \
+	if [ -f "$(OUTPUT_PATH)" ]; then \
+		rm -f "$(OUTPUT_PATH)"; \
+		echo "Removed: $(OUTPUT_FILE)"; \
+	else \
+		echo "Nothing to clean"; \
+	fi
+
+# Install command
+INSTALL_CMD = \
+	echo "Checking Linux dependencies..."; \
+	if ! command -v jq >/dev/null 2>&1; then \
+		echo "Installing jq..."; \
+		if command -v apt-get >/dev/null 2>&1; then \
+			sudo apt-get update && sudo apt-get install -y jq; \
+		elif command -v yum >/dev/null 2>&1; then \
+			sudo yum install -y jq; \
+		elif command -v dnf >/dev/null 2>&1; then \
+			sudo dnf install -y jq; \
+		elif command -v pacman >/dev/null 2>&1; then \
+			sudo pacman -S jq; \
+		else \
+			echo "Please install jq manually for your distribution"; \
+			exit 1; \
+		fi; \
+	else \
+		echo "jq is already installed"; \
+	fi; \
+	echo "Linux dependencies are ready"
+
+# Show analyzers command
+SHOW_ANALYZERS_CMD = \
+	if [ -d "$(AL_EXT_PATH)" ]; then \
+		echo "AL Extension found: $(AL_EXT_PATH)"; \
+		for dll in Microsoft.Dynamics.Nav.CodeCop.dll Microsoft.Dynamics.Nav.UICop.dll Microsoft.Dynamics.Nav.AppSourceCop.dll; do \
+			analyzer_path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
+			if [ -n "$$analyzer_path" ]; then \
+				echo "Found analyzer: $$analyzer_path"; \
+			else \
+				echo "Missing analyzer: $$dll"; \
+			fi; \
+		done; \
+	else \
+		echo "AL Extension not found at: $(AL_EXT_PATH)"; \
+	fi
