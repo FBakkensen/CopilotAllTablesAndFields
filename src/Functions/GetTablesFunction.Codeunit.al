@@ -183,10 +183,23 @@ codeunit 51301 "Get Tables Function" implements "AOAI Function"
     local procedure TryGetRecordCount(TableId: Integer; var RecordCount: Integer)
     var
         RecRef: RecordRef;
+        FieldRef: FieldRef;
+        KeyRef: KeyRef;
+        i: Integer;
     begin
         RecordCount := 0;
         
         RecRef.Open(TableId);
+        
+        // Optimize by loading only primary key fields for count operation
+        if RecRef.FieldCount > 0 then begin
+            KeyRef := RecRef.KeyIndex(1); // Primary key
+            for i := 1 to KeyRef.FieldCount do begin
+                FieldRef := KeyRef.FieldIndex(i);
+                RecRef.SetLoadFields(FieldRef.Number);
+            end;
+        end;
+        
         RecordCount := RecRef.Count();
         RecRef.Close();
     end;

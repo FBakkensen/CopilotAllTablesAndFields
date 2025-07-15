@@ -111,12 +111,14 @@ page 51300 "Data Explorer Prompt"
             action(ShowRecentSales)
             {
                 ApplicationArea = All;
-                Caption = 'Recent sales orders';
-                ToolTip = 'Show recent sales orders from the last 30 days';
+                Caption = 'Recent sales orders in yaml';
+                ToolTip = @'Show me sales orders from the last 30 days in yml.';
 
                 trigger OnAction()
                 begin
-                    UserPrompt := 'Show me sales orders from the last 30 days';
+                    UserPrompt := @'Show me sales orders from the last 30 days
+
+make a proper yaml formatting of the result';
                 end;
             }
             action(ShowInventoryItems)

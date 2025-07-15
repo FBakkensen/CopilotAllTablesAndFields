@@ -16,7 +16,10 @@
       "Bash(gh api:*)",
       "Bash(gh auth:*)",
       "WebFetch(domain:www.anthropic.com)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:alguidelines.dev)",
+      "WebFetch(domain:www.hougaard.com)"
     ],
     "deny": []
   }

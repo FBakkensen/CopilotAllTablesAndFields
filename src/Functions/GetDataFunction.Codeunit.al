@@ -285,29 +285,43 @@ codeunit 51303 "Get Data Function" implements "AOAI Function"
         FieldToken: JsonToken;
         FieldsArray: JsonArray;
         FieldName: Text;
-        FieldsToLoad: Text;
         i: Integer;
     begin
-        if not Arguments.Get('fields', FieldsToken) then
+        if not Arguments.Get('fields', FieldsToken) then begin
+            // No specific fields requested - load all active fields for performance
+            LoadAllActiveFields(RecRef);
             exit;
+        end;
 
         FieldsArray := FieldsToken.AsArray();
 
-        if FieldsArray.Count() = 0 then
+        if FieldsArray.Count() = 0 then begin
+            // Empty array means load all fields
+            LoadAllActiveFields(RecRef);
             exit;
+        end;
 
+        // Apply SetLoadFields for each requested field to optimize performance
         for i := 0 to FieldsArray.Count() - 1 do begin
             FieldsArray.Get(i, FieldToken);
             FieldName := FieldToken.AsValue().AsText();
 
             TryGetFieldRefByName(RecRef, FieldName, FieldRef);
-
-            if FieldsToLoad <> '' then
-                FieldsToLoad += ',';
-            FieldsToLoad += Format(FieldRef.Number);
+            RecRef.SetLoadFields(FieldRef.Number);
         end;
+    end;
 
-        // SetLoadFields is not available with string parameter in this version
+    local procedure LoadAllActiveFields(var RecRef: RecordRef)
+    var
+        FieldRef: FieldRef;
+        i: Integer;
+    begin
+        // Load all active fields to optimize data retrieval
+        for i := 1 to RecRef.FieldCount() do begin
+            FieldRef := RecRef.FieldIndex(i);
+            if FieldRef.Active then
+                RecRef.SetLoadFields(FieldRef.Number);
+        end;
     end;
 
 
