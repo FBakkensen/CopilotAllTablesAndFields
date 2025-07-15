@@ -39,7 +39,7 @@ You will completely resolve this Business Central implementation task by:
 ## Required Research Steps
 
 Complete ALL of these research steps before implementation:
-
+### Launch parallel research agents for:
 <research_steps>
 1. **Project Documentation** - Analyze `.aidocs` folder if present
    - Start with `index.md` as entry point

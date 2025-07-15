@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 CopilotAllTablesAndFields is a Business Central extension that provides a natural language interface for querying Business Central data using Azure OpenAI. It enables users to explore tables, fields, and data through conversational queries powered by Copilot, following Microsoft's recommended patterns for AL development and Copilot integration.
 
+**Important Note**: This project is a reference implementation for a future blog post. As such, it is important to keep everything as simple to understand as possible. It is acceptable if not all edge cases are handled, especially if handling them would add complexity.
+
 ## Development Commands
 
 ### Build and Compilation
