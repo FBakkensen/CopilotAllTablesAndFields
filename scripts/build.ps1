@@ -1,1 +1,0 @@
-pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compile-with-analysis.ps1" -projectPath "$PSScriptRoot\..\"

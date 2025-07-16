@@ -116,26 +116,6 @@ BUILD_CMD := @powershell -NoProfile -Command \
 		Write-Host 'Build completed successfully: $(OUTPUT_FILE)' -ForegroundColor Green \
 	}"
 
-# Analysis only command - AL compiler doesn't have analyzeOnly, so we compile with analyzers and focus on analysis output
-ANALYZE_CMD := @powershell -NoProfile -Command \
-	"Write-Host 'Running analysis for $(APP_NAME)...'; \
-	$$analyzerArgs = '$(ANALYZER_ARGS)'.Trim(); \
-	if ($$analyzerArgs) { \
-		Write-Host 'Running CodeCop and UICop analysis...'; \
-		$$tempOut = [System.IO.Path]::GetTempFileName() + '.app'; \
-		& '$(ALC_PATH)' /project:\"$(PROJECT_ROOT)\" /out:$$tempOut /packagecachepath:\"$(PACKAGE_CACHE)\" $$analyzerArgs.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries); \
-		$$exitCode = $$LASTEXITCODE; \
-		if (Test-Path $$tempOut) { Remove-Item $$tempOut -Force -ErrorAction SilentlyContinue }; \
-		if ($$exitCode -ne 0) { \
-			Write-Host 'Analysis found issues (exit code $$exitCode)' \
-		} else { \
-			Write-Host 'Analysis completed successfully - no issues found' \
-		} \
-	} else { \
-		Write-Host 'No analyzers found. Please ensure AL extension is properly installed.'; \
-		exit 1 \
-	}"
-
 # Clean command
 CLEAN_CMD := @powershell -NoProfile -Command \
 	"if (Test-Path \"$(OUTPUT_PATH)\") { \

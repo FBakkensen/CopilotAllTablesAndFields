@@ -83,7 +83,7 @@ endif
 # Targets
 # =============================================================================
 
-.PHONY: all build clean help install check-deps show-config analyze show-analyzers validate-project
+.PHONY: all build clean help install check-deps show-config show-analyzers validate-project
 
 # Default target
 all: build
@@ -100,7 +100,6 @@ help:
 	@echo "  show-config   - Display current configuration"
 	@echo "  show-analyzers - Show discovered analyzers"
 	@echo "  validate-project - Validate project structure"
-	@echo "  analyze       - Run analysis only (without compilation)"
 	@echo "  install       - Install/setup dependencies"
 	@echo "  help          - Show this help message"
 	@echo ""
