@@ -40,26 +40,8 @@ ALC_PATH := $(AL_EXT_PATH)/bin/linux/alc
 # Analyzer Discovery
 # =============================================================================
 
-
 # Dynamically determine enabled analyzers from settings.json
 SETTINGS_FILE := .vscode/settings.json
-ANALYZER_ARGS := $(shell \
-	enabled=$$(if [ -f $(SETTINGS_FILE) ]; then jq -r '."al.codeAnalyzers" // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | .[]' $(SETTINGS_FILE) 2>/dev/null; else echo "CodeCop"; echo "UICop"; fi); \
-	for name in $$enabled; do \
-		case "$$name" in \
-			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
-			UICop) dll="Microsoft.Dynamics.Nav.UICop.dll";; \
-			AppSourceCop) dll="Microsoft.Dynamics.Nav.AppSourceCop.dll";; \
-			PerTenantExtensionCop) dll="Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll";; \
-			*) dll="";; \
-		esac; \
-		if [ -n "$$dll" ]; then \
-			path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
-			if [ -n "$$path" ]; then \
-				echo -n "/analyzer:$$path "; \
-			fi; \
-		fi; \
-	done)
 
 # ANSI color codes
 COLOR_GREEN=\033[0;32m
@@ -101,14 +83,14 @@ PACKAGE_CACHE := $(PROJECT_ROOT)/.alpackages
 # Main build command (dynamic analyzer logic)
 BUILD_CMD = @bash -c ' \
 	echo -e "$${COLOR_GREEN}Building $(APP_NAME) v$(APP_VERSION)...$${COLOR_RESET}"; \
+	analyzer_args=""; \
+	analyzer_list=""; \
 	if [ -f $(SETTINGS_FILE) ]; then \
 		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
 		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
 	else \
 		enabled="CodeCop,UICop"; \
 	fi; \
-	analyzer_args=""; \
-	analyzer_list=""; \
 	for name in $$(echo $$enabled | tr "," " "); do \
 		case "$$name" in \
 			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
@@ -125,7 +107,7 @@ BUILD_CMD = @bash -c ' \
 			fi; \
 		fi; \
 	done; \
-	if [ -n "$$analyzer_args" ]; then \
+	if [ -n "$$analyzer_list" ]; then \
 		echo "Using analyzers from settings.json:"; \
 		for analyzer in $$analyzer_list; do \
 			echo "  - $$analyzer"; \
@@ -148,14 +130,14 @@ BUILD_CMD = @bash -c ' \
 ANALYZE_CMD = @bash -c ' \
 	echo -e "$${COLOR_GREEN}Running analysis for $(APP_NAME)...$${COLOR_RESET}"; \
 	TMP_OUT=$(PROJECT_ROOT)/tmp_$(OUTPUT_FILE); \
+	analyzer_args=""; \
+	analyzer_list=""; \
 	if [ -f $(SETTINGS_FILE) ]; then \
 		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
 		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
 	else \
 		enabled="CodeCop,UICop"; \
 	fi; \
-	analyzer_args=""; \
-	analyzer_list=""; \
 	for name in $$(echo $$enabled | tr "," " "); do \
 		case "$$name" in \
 			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
@@ -172,7 +154,7 @@ ANALYZE_CMD = @bash -c ' \
 			fi; \
 		fi; \
 	done; \
-	if [ -n "$$analyzer_args" ]; then \
+	if [ -n "$$analyzer_list" ]; then \
 		echo "Running analysis with enabled analyzers: $$analyzer_list"; \
 	else \
 		echo -e "$${COLOR_RED}No analyzers found. Please ensure AL extension is properly installed.$${COLOR_RESET}"; \
@@ -265,6 +247,7 @@ SHOW_CONFIG_CMD = @bash -c ' \
 	echo "Enabled Analyzers: $$enabled"; \
 	echo ""; \
 	echo "Analyzer Paths:"; \
+	analyzer_count=0; \
 	for name in $$(echo $$enabled | tr "," " "); do \
 		dll=""; \
 		case "$$name" in \
@@ -278,9 +261,10 @@ SHOW_CONFIG_CMD = @bash -c ' \
 			if [ -n "$$analyzer_path" ]; then \
 				name_short=$$(basename $$analyzer_path | sed "s/Microsoft\.Dynamics\.Nav\.//;s/\.dll//"); \
 				echo "  - $$name_short: $$analyzer_path"; \
+				analyzer_count=$$((analyzer_count+1)); \
 			fi; \
 		fi; \
 	done; \
-	if [ -z "$$(echo $$enabled | tr "," " ")" ]; then \
-		echo "  (No analyzers configured)"; \
+	if [ $$analyzer_count -eq 0 ]; then \
+		echo "  (No analyzers configured or found)"; \
 	fi'
