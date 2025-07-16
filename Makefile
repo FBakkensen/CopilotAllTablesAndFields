@@ -54,7 +54,7 @@ OUTPUT_FILE := $(PUBLISHER)_$(APP_NAME)_$(APP_VERSION).app
 OUTPUT_PATH := $(OUTPUT_DIR)/$(OUTPUT_FILE)
 
 # =============================================================================
-# Platform Detection
+# Platform Detection and Error Handling
 # =============================================================================
 
 # Detect operating system
@@ -64,6 +64,9 @@ ifeq ($(OS),Windows_NT)
 else
     DETECTED_OS := $(shell uname -s)
     PLATFORM := linux
+    # Improved error handling for non-Windows platforms
+    SHELL := /bin/bash
+    .SHELLFLAGS := -eu -o pipefail -c
 endif
 
 # =============================================================================
@@ -164,8 +167,7 @@ ifeq ($(OS),Windows_NT)
 		}; \
 		if (Test-Path '$(SRC_DIR)') { \
 			Write-Host '✓ Source directory: $(SRC_DIR)'; \
-			$$alFiles = (Get-ChildItem -Path '$(SRC_DIR)' -Recurse -Filter '*.al' -ErrorAction SilentlyContinue).Count; \
-			Write-Host '  - AL files:' $$alFiles \
+			Write-Host '  - AL files: ' + (Get-ChildItem -Path '$(SRC_DIR)' -Recurse -Filter '*.al' -ErrorAction SilentlyContinue).Count \
 		} else { \
 			Write-Host '✗ Source directory not found: $(SRC_DIR)' \
 		}; \

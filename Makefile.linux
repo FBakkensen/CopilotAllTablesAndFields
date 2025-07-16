@@ -93,12 +93,14 @@ BUILD_CMD = \
 
 # Analysis only command
 ANALYZE_CMD = \
+	TEMP_OUT=$$(mktemp --suffix=.app); \
 	"$(ALC_PATH)" \
 		"/project:$(PROJECT_ROOT)" \
+		"/out:$$TEMP_OUT" \
 		"/packagecachepath:$(PACKAGE_CACHE)" \
-		$(ANALYZER_ARGS) \
-		"/analyzer-only"; \
+		$(ANALYZER_ARGS); \
 	EXIT_CODE=$$?; \
+	rm -f "$$TEMP_OUT"; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "##[error]Analysis failed with exit code $$EXIT_CODE" >&2; \
 		exit $$EXIT_CODE; \
