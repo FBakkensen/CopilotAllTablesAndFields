@@ -12,7 +12,6 @@ codeunit 51310 "Data Explorer Capability"
         SystemMessage: Text;
         UserMessage: Text;
         Success: Boolean;
-        Test: Boolean;
     begin
         SystemMessage := GetSystemMessage();
         UserMessage := Intent;
