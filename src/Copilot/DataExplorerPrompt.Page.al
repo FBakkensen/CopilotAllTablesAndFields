@@ -138,6 +138,21 @@ Only include customers with contacts.
 Do not output any error messages or verbose information, only customers and contacts';
                 end;
             }
+            action(ShowItemCategories)
+            {
+                ApplicationArea = All;
+                Caption = 'Item categories in JSON';
+                ToolTip = 'Show all item categories formatted as JSON';
+
+                trigger OnAction()
+                begin
+                    UserPrompt := @'Show me all item categories in JSON format.
+
+Include the code, description, and parent category for each item category.
+
+Format the output as proper JSON with proper indentation and structure.';
+                end;
+            }
         }
     }
 
