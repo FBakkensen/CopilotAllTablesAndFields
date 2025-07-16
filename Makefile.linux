@@ -17,10 +17,10 @@ JQ_AVAILABLE := $(shell command -v jq >/dev/null 2>&1 && echo "yes" || echo "no"
 
 # JSON parsing command
 ifeq ($(JQ_AVAILABLE),yes)
-    JSON_PARSE_CMD = jq -r
+	JSON_PARSE_CMD = jq -r
 else
-    # Fallback using basic shell tools (less reliable)
-    JSON_PARSE_CMD = grep -o '"$1"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4
+	# Fallback using basic shell tools (less reliable)
+	JSON_PARSE_CMD = grep -o '"$1"[[:space:]]*:[[:space:]]*"[^"]*"' | cut -d'"' -f4
 endif
 
 # Sanitize filename for Linux
@@ -40,88 +40,167 @@ ALC_PATH := $(AL_EXT_PATH)/bin/linux/alc
 # Analyzer Discovery
 # =============================================================================
 
-# Analyzer DLLs to find
-ANALYZER_DLLS := Microsoft.Dynamics.Nav.CodeCop.dll Microsoft.Dynamics.Nav.UICop.dll Microsoft.Dynamics.Nav.AppSourceCop.dll
 
-# Find analyzer paths
-ANALYZER_PATHS := $(shell \
-    for dll in $(ANALYZER_DLLS); do \
-        find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>$(NULL_DEVICE) | head -1 | \
-        while read path; do \
-            if [ -n "$$path" ]; then \
-                echo -n "/analyzer:\"$$path\" "; \
-            fi; \
-        done; \
-    done)
+# Dynamically determine enabled analyzers from settings.json
+SETTINGS_FILE := .vscode/settings.json
+ANALYZER_ARGS := $(shell \
+	enabled=$$(if [ -f $(SETTINGS_FILE) ]; then jq -r '."al.codeAnalyzers" // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | .[]' $(SETTINGS_FILE) 2>/dev/null; else echo "CodeCop"; echo "UICop"; fi); \
+	for name in $$enabled; do \
+		case "$$name" in \
+			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
+			UICop) dll="Microsoft.Dynamics.Nav.UICop.dll";; \
+			AppSourceCop) dll="Microsoft.Dynamics.Nav.AppSourceCop.dll";; \
+			PerTenantExtensionCop) dll="Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll";; \
+			*) dll="";; \
+		esac; \
+		if [ -n "$$dll" ]; then \
+			path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
+			if [ -n "$$path" ]; then \
+				echo -n "/analyzer:$$path "; \
+			fi; \
+		fi; \
+	done)
 
-ANALYZER_ARGS := $(ANALYZER_PATHS)
+# ANSI color codes
+COLOR_GREEN=\033[0;32m
+COLOR_RED=\033[0;31m
+COLOR_YELLOW=\033[1;33m
+COLOR_RESET=\033[0m
 
 # =============================================================================
-# Build Commands
+# Platform-Specific Command Variables (no targets)
 # =============================================================================
 
 # Dependency check command
-CHECK_DEPS_CMD = \
+CHECK_DEPS_CMD = @bash -c ' \
 	if [ ! -f "$(ALC_PATH)" ]; then \
-		echo "Error: AL Compiler not found at $(ALC_PATH)" >&2; \
+		echo -e "$${COLOR_RED}✗ AL Compiler not found. Please ensure AL extension is installed in VS Code.$${COLOR_RESET}" >&2; \
 		exit 1; \
 	fi; \
 	if [ "$(JQ_AVAILABLE)" = "no" ]; then \
-		echo "Warning: jq not found. JSON parsing may be unreliable." >&2; \
-		echo "Install jq: sudo apt-get install jq" >&2; \
+		echo -e "$${COLOR_YELLOW}Warning: jq not found. JSON parsing may be unreliable.$${COLOR_RESET}" >&2; \
+		echo -e "$${COLOR_YELLOW}Install jq: sudo apt-get install jq$${COLOR_RESET}" >&2; \
 	fi; \
 	if [ ! -x "$(ALC_PATH)" ]; then \
-		echo "Making AL compiler executable..."; \
 		chmod +x "$(ALC_PATH)"; \
 	fi; \
-	echo "AL Compiler found: $(ALC_PATH)"
+	echo -e "$${COLOR_GREEN}✓ AL Compiler found: $(ALC_PATH)$${COLOR_RESET}"'
 
-# Main build command
-BUILD_CMD = \
-	"$(ALC_PATH)" \
-		"/project:$(PROJECT_ROOT)" \
-		"/out:$(OUTPUT_PATH)" \
-		"/packagecachepath:$(PACKAGE_CACHE)" \
-		$(ANALYZER_ARGS); \
-	EXIT_CODE=$$?; \
+PROJECT_ROOT := $(CURDIR)
+APP_JSON := $(PROJECT_ROOT)/app.json
+APP_NAME := $(shell jq -r '.name' $(APP_JSON))
+APP_VERSION := $(shell jq -r '.version' $(APP_JSON))
+PUBLISHER := $(shell jq -r '.publisher' $(APP_JSON))
+SAFE_APP_NAME := $(shell echo $(APP_NAME) | sed 's/[\\/:*?"<>|]//g')
+OUTPUT_FILE := $(PUBLISHER)_$(SAFE_APP_NAME)_$(APP_VERSION).app
+OUTPUT_PATH := $(PROJECT_ROOT)/$(OUTPUT_FILE)
+PACKAGE_CACHE := $(PROJECT_ROOT)/.alpackages
+
+# Build argument string
+
+# Main build command (dynamic analyzer logic)
+BUILD_CMD = @bash -c ' \
+	echo -e "$${COLOR_GREEN}Building $(APP_NAME) v$(APP_VERSION)...$${COLOR_RESET}"; \
+	if [ -f $(SETTINGS_FILE) ]; then \
+		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
+		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
+	else \
+		enabled="CodeCop,UICop"; \
+	fi; \
+	analyzer_args=""; \
+	analyzer_list=""; \
+	for name in $$(echo $$enabled | tr "," " "); do \
+		case "$$name" in \
+			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
+			UICop) dll="Microsoft.Dynamics.Nav.UICop.dll";; \
+			AppSourceCop) dll="Microsoft.Dynamics.Nav.AppSourceCop.dll";; \
+			PerTenantExtensionCop) dll="Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll";; \
+			*) dll="";; \
+		esac; \
+		if [ -n "$$dll" ]; then \
+			path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
+			if [ -n "$$path" ]; then \
+				analyzer_args="$$analyzer_args /analyzer:$$path"; \
+				analyzer_list="$$analyzer_list$$name "; \
+			fi; \
+		fi; \
+	done; \
+	if [ -n "$$analyzer_args" ]; then \
+		echo "Using analyzers from settings.json:"; \
+		for analyzer in $$analyzer_list; do \
+			echo "  - $$analyzer"; \
+		done; \
+		echo ""; \
+	else \
+		echo "No analyzers found or enabled in settings.json"; \
+		echo ""; \
+	fi; \
+	"$(ALC_PATH)" /project:$(PROJECT_ROOT) /out:$(OUTPUT_PATH) /packagecachepath:$(PACKAGE_CACHE) $$analyzer_args; EXIT_CODE=$$?; \
+	echo ""; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
-		echo "##[error]Compilation failed with exit code $$EXIT_CODE" >&2; \
+		echo -e "$${COLOR_RED}Build failed with errors above.$${COLOR_RESET}" >&2; \
 		exit $$EXIT_CODE; \
 	else \
-		echo "Compilation completed successfully: $(OUTPUT_FILE)"; \
-	fi
+		echo -e "$${COLOR_GREEN}✓ Build completed successfully: $(OUTPUT_FILE)$${COLOR_RESET}"; \
+	fi'
 
 # Analysis only command
-ANALYZE_CMD = \
-	TEMP_OUT=$$(mktemp --suffix=.app); \
-	"$(ALC_PATH)" \
-		"/project:$(PROJECT_ROOT)" \
-		"/out:$$TEMP_OUT" \
-		"/packagecachepath:$(PACKAGE_CACHE)" \
-		$(ANALYZER_ARGS); \
-	EXIT_CODE=$$?; \
-	rm -f "$$TEMP_OUT"; \
-	if [ $$EXIT_CODE -ne 0 ]; then \
-		echo "##[error]Analysis failed with exit code $$EXIT_CODE" >&2; \
-		exit $$EXIT_CODE; \
+ANALYZE_CMD = @bash -c ' \
+	echo -e "$${COLOR_GREEN}Running analysis for $(APP_NAME)...$${COLOR_RESET}"; \
+	TMP_OUT=$(PROJECT_ROOT)/tmp_$(OUTPUT_FILE); \
+	if [ -f $(SETTINGS_FILE) ]; then \
+		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
+		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
 	else \
-		echo "Analysis completed successfully"; \
-	fi
+		enabled="CodeCop,UICop"; \
+	fi; \
+	analyzer_args=""; \
+	analyzer_list=""; \
+	for name in $$(echo $$enabled | tr "," " "); do \
+		case "$$name" in \
+			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
+			UICop) dll="Microsoft.Dynamics.Nav.UICop.dll";; \
+			AppSourceCop) dll="Microsoft.Dynamics.Nav.AppSourceCop.dll";; \
+			PerTenantExtensionCop) dll="Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll";; \
+			*) dll="";; \
+		esac; \
+		if [ -n "$$dll" ]; then \
+			path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
+			if [ -n "$$path" ]; then \
+				analyzer_args="$$analyzer_args /analyzer:$$path"; \
+				analyzer_list="$$analyzer_list$$name "; \
+			fi; \
+		fi; \
+	done; \
+	if [ -n "$$analyzer_args" ]; then \
+		echo "Running analysis with enabled analyzers: $$analyzer_list"; \
+	else \
+		echo -e "$${COLOR_RED}No analyzers found. Please ensure AL extension is properly installed.$${COLOR_RESET}"; \
+		exit 1; \
+	fi; \
+	"$(ALC_PATH)" /project:$(PROJECT_ROOT) /out:$$TMP_OUT /packagecachepath:$(PACKAGE_CACHE) $$analyzer_args; EXIT_CODE=$$?; rm -f $$TMP_OUT; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo -e "$${COLOR_RED}Analysis found issues (exit code $$EXIT_CODE)$${COLOR_RESET}"; \
+	else \
+		echo -e "$${COLOR_GREEN}✓ Analysis completed successfully - no issues found$${COLOR_RESET}"; \
+	fi'
 
 # Clean command
-CLEAN_CMD = \
+CLEAN_CMD = @bash -c ' \
 	if [ -f "$(OUTPUT_PATH)" ]; then \
 		rm -f "$(OUTPUT_PATH)"; \
-		echo "Removed: $(OUTPUT_FILE)"; \
+		echo -e "$${COLOR_GREEN}✓ Removed: $(OUTPUT_FILE)$${COLOR_RESET}"; \
 	else \
-		echo "Nothing to clean"; \
-	fi
+		echo -e "$${COLOR_YELLOW}Nothing to clean$${COLOR_RESET}"; \
+	fi'
 
 # Install command
-INSTALL_CMD = \
-	echo "Checking Linux dependencies..."; \
+INSTALL_CMD = @bash -c ' \
+	echo -e "$${COLOR_GREEN}Checking Linux dependencies...$${COLOR_RESET}"; \
+	echo "Shell: $$SHELL"; \
+	echo "Bash version: $$BASH_VERSION"; \
 	if ! command -v jq >/dev/null 2>&1; then \
-		echo "Installing jq..."; \
+		echo -e "$${COLOR_YELLOW}Installing jq...$${COLOR_RESET}"; \
 		if command -v apt-get >/dev/null 2>&1; then \
 			sudo apt-get update && sudo apt-get install -y jq; \
 		elif command -v yum >/dev/null 2>&1; then \
@@ -131,26 +210,77 @@ INSTALL_CMD = \
 		elif command -v pacman >/dev/null 2>&1; then \
 			sudo pacman -S jq; \
 		else \
-			echo "Please install jq manually for your distribution"; \
+			echo -e "$${COLOR_RED}Please install jq manually for your distribution$${COLOR_RESET}"; \
 			exit 1; \
 		fi; \
 	else \
-		echo "jq is already installed"; \
+		echo -e "$${COLOR_GREEN}✓ jq is already installed$${COLOR_RESET}"; \
 	fi; \
-	echo "Linux dependencies are ready"
+	echo -e "$${COLOR_GREEN}✓ Linux dependencies are ready$${COLOR_RESET}"'
 
-# Show analyzers command
-SHOW_ANALYZERS_CMD = \
+
+
+SHOW_ANALYZERS_CMD = @bash -c ' \
+	echo "Settings file: $(SETTINGS_FILE)"; \
+	if [ -f $(SETTINGS_FILE) ]; then \
+		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
+		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
+	else \
+		enabled="CodeCop,UICop"; \
+	fi; \
+	echo "Enabled analyzers from settings: $$enabled"; \
+	echo ""; \
 	if [ -d "$(AL_EXT_PATH)" ]; then \
-		echo "AL Extension found: $(AL_EXT_PATH)"; \
-		for dll in Microsoft.Dynamics.Nav.CodeCop.dll Microsoft.Dynamics.Nav.UICop.dll Microsoft.Dynamics.Nav.AppSourceCop.dll; do \
+		echo -e "$${COLOR_GREEN}AL Extension found: $(AL_EXT_PATH)$${COLOR_RESET}"; \
+		analyzers="Microsoft.Dynamics.Nav.CodeCop.dll Microsoft.Dynamics.Nav.UICop.dll Microsoft.Dynamics.Nav.AppSourceCop.dll Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"; \
+		found_any=0; \
+		for dll in $$analyzers; do \
 			analyzer_path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
 			if [ -n "$$analyzer_path" ]; then \
-				echo "Found analyzer: $$analyzer_path"; \
+				echo -e "$${COLOR_GREEN}✓ Found analyzer: $$analyzer_path$${COLOR_RESET}"; \
+				found_any=1; \
 			else \
-				echo "Missing analyzer: $$dll"; \
+				echo -e "$${COLOR_YELLOW}✗ Missing analyzer: $$dll$${COLOR_RESET}"; \
 			fi; \
 		done; \
+		if [ $$found_any -eq 0 ]; then \
+			echo -e "$${COLOR_YELLOW}No analyzers found in AL extension$${COLOR_RESET}"; \
+		fi; \
 	else \
-		echo "AL Extension not found at: $(AL_EXT_PATH)"; \
-	fi
+		echo -e "$${COLOR_RED}✗ AL Extension not found at: $(AL_EXT_PATH)$${COLOR_RESET}"; \
+	fi'
+SHOW_CONFIG_CMD = @bash -c ' \
+	if [ -f "$(ALC_PATH)" ]; then \
+		echo -e "$${COLOR_GREEN}✓ AL Compiler: $(ALC_PATH)$${COLOR_RESET}"; \
+	else \
+		echo -e "$${COLOR_RED}✗ AL Compiler not found at: $(ALC_PATH)$${COLOR_RESET}"; \
+	fi; \
+	echo "Settings File: $(SETTINGS_FILE)"; \
+	if [ -f $(SETTINGS_FILE) ]; then \
+		enabled=$$(jq -r '"'"'.["al.codeAnalyzers"] // ["$${CodeCop}","$${UICop}"] | map(gsub("\\$$\\{|\\}"; "")) | join(",")'"'"' $(SETTINGS_FILE) 2>/dev/null); \
+		if [ -z "$$enabled" ] || [ "$$enabled" = "null" ]; then enabled="CodeCop,UICop"; fi; \
+	else \
+		enabled="CodeCop,UICop"; \
+	fi; \
+	echo "Enabled Analyzers: $$enabled"; \
+	echo ""; \
+	echo "Analyzer Paths:"; \
+	for name in $$(echo $$enabled | tr "," " "); do \
+		dll=""; \
+		case "$$name" in \
+			CodeCop) dll="Microsoft.Dynamics.Nav.CodeCop.dll";; \
+			UICop) dll="Microsoft.Dynamics.Nav.UICop.dll";; \
+			AppSourceCop) dll="Microsoft.Dynamics.Nav.AppSourceCop.dll";; \
+			PerTenantExtensionCop) dll="Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll";; \
+		esac; \
+		if [ -n "$$dll" ]; then \
+			analyzer_path=$$(find "$(AL_EXT_PATH)" -name "$$dll" -type f 2>/dev/null | head -1); \
+			if [ -n "$$analyzer_path" ]; then \
+				name_short=$$(basename $$analyzer_path | sed "s/Microsoft\.Dynamics\.Nav\.//;s/\.dll//"); \
+				echo "  - $$name_short: $$analyzer_path"; \
+			fi; \
+		fi; \
+	done; \
+	if [ -z "$$(echo $$enabled | tr "," " ")" ]; then \
+		echo "  (No analyzers configured)"; \
+	fi'
