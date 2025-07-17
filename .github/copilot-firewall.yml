@@ -1,0 +1,6 @@
+firewall:
+  allow:
+    - dot.net
+    - marketplace.visualstudio.com
+    - dynamicssmb2.pkgs.visualstudio.com
+    - pkgs.dev.azure.com
