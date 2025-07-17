@@ -6,13 +6,6 @@ echo "AL compiler setup complete"
 
 echo "Setting up AL compiler (latest version)..."
 
-# Install .NET runtime if not present
-if ! command -v dotnet &> /dev/null; then
-    wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
-    chmod +x dotnet-install.sh
-    ./dotnet-install.sh --runtime dotnet --version 8.0.0
-fi
-
 # Download the latest AL Language VSIX
 echo "Downloading latest AL Language extension..."
 wget --user-agent="Mozilla/5.0" "https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-dynamics-smb/vsextensions/al/latest/vspackage" -O al.vsix.gz
