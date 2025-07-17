@@ -39,9 +39,19 @@ EXT_DIR="$HOME/.vscode-server/extensions/ms-dynamics-smb.al-$AL_VERSION"
 rm -rf "$EXT_DIR"
 mkdir -p "$EXT_DIR"
 
+echo "AL compiler and analyzers extracted to $EXT_DIR (original VSIX structure)"
+echo "Setup complete."
 # Extract VSIX to the correct VS Code extension directory
 unzip -q al.vsix.zip -d "$EXT_DIR"
 
+# Move contents of extension/ up one level if present
+if [ -d "$EXT_DIR/extension" ]; then
+  echo "Moving files from $EXT_DIR/extension to $EXT_DIR ..."
+  shopt -s dotglob nullglob
+  mv "$EXT_DIR/extension"/* "$EXT_DIR/"
+  shopt -u dotglob nullglob
+  rmdir "$EXT_DIR/extension"
+fi
 
-echo "AL compiler and analyzers extracted to $EXT_DIR (original VSIX structure)"
+echo "AL compiler and analyzers installed to $EXT_DIR (alc should be at $EXT_DIR/bin/linux/alc)"
 echo "Setup complete."
