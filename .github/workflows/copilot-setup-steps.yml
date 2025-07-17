@@ -45,13 +45,13 @@ jobs:
           echo "AL Development Environment Ready" > .copilot-environment-ready
           echo "Setup completed at: $(date)" >> .copilot-environment-ready
           echo "AL Compiler: Available at $(which alc)" >> .copilot-environment-ready
-          echo "Symbols restored: $(ls -1 app/.alpackages/*.app 2>/dev/null | wc -l) files" >> .copilot-environment-ready
+          echo "Symbols restored: $(ls -1 .alpackages/*.app 2>/dev/null | wc -l) files" >> .copilot-environment-ready
 
       - name: Display environment summary
         run: |
           echo "=== Copilot AL Development Environment ==="
           echo "✓ .NET SDK: $(dotnet --version)"
           echo "✓ AL Compiler: Available at $(which alc || echo 'Not found')"
-          echo "✓ Symbols: $(ls -1 app/.alpackages/*.app 2>/dev/null | wc -l) .app files"
-          echo "✓ Project: $(jq -r '.name' app/app.json) v$(jq -r '.version' app/app.json)"
+          echo "✓ Symbols: $(ls -1 .alpackages/*.app 2>/dev/null | wc -l) .app files"
+          echo "✓ Project: $(jq -r '.name' app.json) v$(jq -r '.version' app.json)"
           echo "========================================="
