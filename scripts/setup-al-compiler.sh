@@ -78,3 +78,6 @@ echo "AL compiler and analyzers installed to $EXT_DIR"
 echo "alc path: $TARGET_BIN_LINUX/alc"
 echo "Analyzers in: $TARGET_BIN_LINUX"
 echo "Setup complete."
+
+# Export the AL compiler bin directory to PATH for subsequent steps
+echo "export PATH=\"$TARGET_BIN_LINUX:$PATH\"" >> $GITHUB_ENV
