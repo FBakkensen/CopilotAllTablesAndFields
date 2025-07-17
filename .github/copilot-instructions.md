@@ -1,4 +1,19 @@
+
 # Copilot Data Explorer - AI Agent Instructions
+
+## Build & Deployment
+
+### Build Workflow & Task Completion
+- The primary build workflow is managed via `make build`, which invokes the AL compiler and restores symbols as needed (see `scripts/`).
+- All code changes and tasks must be validated by running `make build` at the project root.
+- **A task is not considered complete until `make build` runs without any errors or warnings.**
+- Use `make clean` to remove build artifacts if needed.
+
+#### Example:
+```powershell
+make build          # Cross-platform build using AL compiler
+make clean          # Remove build artifacts
+```
 
 ## Project Overview
 This is a Microsoft Dynamics 365 Business Central AL extension that provides a natural language interface for exploring Business Central data using Azure OpenAI. The extension implements a Copilot capability that allows users to query tables, fields, and data through conversational AI.
@@ -54,13 +69,7 @@ codeunit XXXXX "Function Name" implements "AOAI Function"
 - **Smart Filtering**: Provide filtering suggestions when result sets are large
 - **System Table Exclusion**: Skip tables with ID >= 2000000000 (system tables)
 
-## Build & Deployment
 
-### Build Commands
-```powershell
-make build          # Cross-platform build using AL compiler
-make clean          # Remove build artifacts
-```
 
 ### Configuration Requirements
 1. **SaaS Environment**: Uses managed Azure OpenAI (no setup required)

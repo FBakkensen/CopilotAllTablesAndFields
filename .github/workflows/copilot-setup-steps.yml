@@ -1,0 +1,92 @@
+name: Copilot Setup Steps
+on:
+  workflow_dispatch:
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq wget curl unzip mono-complete file
+
+      - name: Cache AL tools
+        uses: actions/cache@v4
+        with:
+          path: ~/.al-tools
+          key: al-tools-latest-${{ hashFiles('**/app.json') }}
+
+      - name: Cache symbols
+        uses: actions/cache@v4
+        with:
+          path: app/.alpackages
+          key: al-symbols-${{ hashFiles('app/app.json') }}
+          restore-keys: |
+            al-symbols-
+
+      - name: Install AL Compiler
+        run: |
+          chmod +x scripts/setup-al-compiler.sh
+          ./scripts/setup-al-compiler.sh
+
+      - name: Verify AL Compiler
+        run: |
+          which alc || (echo "AL compiler not found in PATH" && exit 1)
+          echo "AL Compiler installed at: $(which alc)"
+
+      - name: Restore BC Symbols
+        run: |
+          chmod +x scripts/restore-symbols.sh
+          ./scripts/restore-symbols.sh .
+
+      - name: Compile AL Project
+        id: compile-test
+        working-directory: ./app
+        run: |
+          echo "Testing AL compilation in Copilot environment..."
+          mkdir -p ./output
+
+          # Run compilation from app directory
+          alc /project:"." /packagecachepath:"./.alpackages" /out:"./output/app.app" /errorlog:"compilation-errors.json" || true
+
+          # Check results
+          if [ -f "./output/app.app" ]; then
+            echo "✅ AL compilation successful!"
+            echo "compilation_status=success" >> $GITHUB_OUTPUT
+          else
+            echo "❌ AL compilation failed"
+            if [ -f compilation-errors.json ]; then
+              echo "Compilation errors:"
+              jq -r '.[] | "\(.filename):\(.line):\(.column): \(.code) - \(.message)"' compilation-errors.json
+            fi
+            echo "compilation_status=failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup verification file
+        run: |
+          # Create a marker file to indicate successful setup
+          echo "AL Development Environment Ready" > .copilot-environment-ready
+          echo "Setup completed at: $(date)" >> .copilot-environment-ready
+          echo "AL Compiler: Available at $(which alc)" >> .copilot-environment-ready
+          echo "Symbols restored: $(ls -1 app/.alpackages/*.app 2>/dev/null | wc -l) files" >> .copilot-environment-ready
+
+      - name: Display environment summary
+        run: |
+          echo "=== Copilot AL Development Environment ==="
+          echo "✓ .NET SDK: $(dotnet --version)"
+          echo "✓ AL Compiler: Available at $(which alc || echo 'Not found')"
+          echo "✓ Symbols: $(ls -1 app/.alpackages/*.app 2>/dev/null | wc -l) .app files"
+          echo "✓ Project: $(jq -r '.name' app/app.json) v$(jq -r '.version' app/app.json)"
+          echo "========================================="
