@@ -1,10 +1,13 @@
+
 #!/bin/bash
 set -e
 
 echo "Setting up AL compiler (latest version)..."
-echo "AL compiler setup complete"
 
-echo "Setting up AL compiler (latest version)..."
+# Create a temporary working directory for all downloads and extraction
+WORKDIR=$(mktemp -d)
+echo "Using temp directory: $WORKDIR"
+cd "$WORKDIR"
 
 # Download the latest AL Language VSIX
 echo "Downloading latest AL Language extension..."
@@ -21,6 +24,8 @@ elif file al.vsix.gz | grep -q "Zip archive"; then
 else
     echo "Error: Downloaded file is not a valid VSIX/ZIP file"
     echo "File type: $(file al.vsix.gz)"
+    cd -
+    rm -rf "$WORKDIR"
     exit 1
 fi
 
