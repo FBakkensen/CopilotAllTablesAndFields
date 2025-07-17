@@ -42,32 +42,39 @@ mkdir -p "$EXT_DIR"
 # Extract VSIX to the correct VS Code extension directory
 unzip -q al.vsix.zip -d "$EXT_DIR"
 
-echo "AL compiler installed to $EXT_DIR"
-echo "alc path: $EXT_DIR/bin/linux/alc"
-echo "Setup complete."
-# Make compiler executable
-chmod +x "$EXT_DIR/bin/linux/alc"
 
-# Copy analyzers to bin directory if present
+# Ensure target directory exists
+TARGET_BIN_LINUX="$EXT_DIR/bin/linux"
+SRC_BIN_LINUX="$EXT_DIR/extension/bin/linux"
+mkdir -p "$TARGET_BIN_LINUX"
+
+# Copy alc compiler
+if [ -f "$SRC_BIN_LINUX/alc" ]; then
+  cp -f "$SRC_BIN_LINUX/alc" "$TARGET_BIN_LINUX/alc"
+  chmod +x "$TARGET_BIN_LINUX/alc"
+  echo "Copied alc to $TARGET_BIN_LINUX/alc"
+else
+  echo "alc not found in $SRC_BIN_LINUX, setup failed."
+  exit 1
+fi
+
+# Copy analyzers to bin/linux directory if present
 ANALYZERS=(
   "Microsoft.Dynamics.Nav.CodeCop.dll"
   "Microsoft.Dynamics.Nav.UICop.dll"
   "Microsoft.Dynamics.Nav.AppSourceCop.dll"
   "Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
 )
-ANALYZER_SRC="$EXT_DIR/extension/bin/"
-ANALYZER_DST="$EXT_DIR/bin/"
-mkdir -p "$ANALYZER_DST"
 for dll in "${ANALYZERS[@]}"; do
-  if [ -f "$ANALYZER_SRC/$dll" ]; then
-    cp -f "$ANALYZER_SRC/$dll" "$ANALYZER_DST"
-    echo "Copied $dll to $ANALYZER_DST"
+  if [ -f "$SRC_BIN_LINUX/$dll" ]; then
+    cp -f "$SRC_BIN_LINUX/$dll" "$TARGET_BIN_LINUX/$dll"
+    echo "Copied $dll to $TARGET_BIN_LINUX"
   else
-    echo "$dll not found in VSIX, skipping."
+    echo "$dll not found in $SRC_BIN_LINUX, skipping."
   fi
 done
 
 echo "AL compiler and analyzers installed to $EXT_DIR"
-echo "alc path: $EXT_DIR/bin/linux/alc"
-echo "Analyzers in: $EXT_DIR/bin/"
+echo "alc path: $TARGET_BIN_LINUX/alc"
+echo "Analyzers in: $TARGET_BIN_LINUX"
 echo "Setup complete."
