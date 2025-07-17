@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-TOOLS_DIR="$HOME/.al-tools"
+echo "Setting up AL compiler (latest version)..."
+echo "AL compiler setup complete"
 
 echo "Setting up AL compiler (latest version)..."
 
@@ -11,10 +12,6 @@ if ! command -v dotnet &> /dev/null; then
     chmod +x dotnet-install.sh
     ./dotnet-install.sh --runtime dotnet --version 8.0.0
 fi
-
-# Download AL compiler from NuGet
-mkdir -p "$TOOLS_DIR"
-cd "$TOOLS_DIR"
 
 # Download the latest AL Language VSIX
 echo "Downloading latest AL Language extension..."
@@ -40,14 +37,44 @@ if ! unzip -t al.vsix.zip >/dev/null 2>&1; then
     exit 1
 fi
 
-# Extract compiler
-unzip -o al.vsix.zip
-cd extension/bin
+# Extract version from extension/package.json inside the VSIX
+unzip -p al.vsix.zip extension/package.json > package.json
+AL_VERSION=$(grep '"version"' package.json | head -1 | sed 's/.*: *"\([^"]*\)".*/\1/')
+EXT_DIR="$HOME/.vscode-server/extensions/ms-dynamics-smb.al-$AL_VERSION"
 
+# Remove any existing extension dir for this version
+rm -rf "$EXT_DIR"
+mkdir -p "$EXT_DIR"
+
+# Extract VSIX to the correct VS Code extension directory
+unzip -q al.vsix.zip -d "$EXT_DIR"
+
+echo "AL compiler installed to $EXT_DIR"
+echo "alc path: $EXT_DIR/bin/linux/alc"
+echo "Setup complete."
 # Make compiler executable
-chmod +x linux/alc
+chmod +x "$EXT_DIR/bin/linux/alc"
 
-# Create symlink
-sudo ln -sf "$TOOLS_DIR/extension/bin/linux/alc" /usr/local/bin/alc
+# Copy analyzers to bin directory if present
+ANALYZERS=(
+  "Microsoft.Dynamics.Nav.CodeCop.dll"
+  "Microsoft.Dynamics.Nav.UICop.dll"
+  "Microsoft.Dynamics.Nav.AppSourceCop.dll"
+  "Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
+)
+ANALYZER_SRC="$EXT_DIR/extension/bin/"
+ANALYZER_DST="$EXT_DIR/bin/"
+mkdir -p "$ANALYZER_DST"
+for dll in "${ANALYZERS[@]}"; do
+  if [ -f "$ANALYZER_SRC/$dll" ]; then
+    cp -f "$ANALYZER_SRC/$dll" "$ANALYZER_DST"
+    echo "Copied $dll to $ANALYZER_DST"
+  else
+    echo "$dll not found in VSIX, skipping."
+  fi
+done
 
-echo "AL compiler setup complete"
+echo "AL compiler and analyzers installed to $EXT_DIR"
+echo "alc path: $EXT_DIR/bin/linux/alc"
+echo "Analyzers in: $EXT_DIR/bin/"
+echo "Setup complete."
