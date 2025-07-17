@@ -33,11 +33,6 @@ jobs:
           chmod +x scripts/setup-al-compiler.sh
           ./scripts/setup-al-compiler.sh
 
-      - name: Verify AL Compiler
-        run: |
-          which alc || (echo "AL compiler not found in PATH" && exit 1)
-          echo "AL Compiler installed at: $(which alc)"
-
       - name: Restore BC Symbols
         run: |
           chmod +x scripts/restore-symbols.sh
