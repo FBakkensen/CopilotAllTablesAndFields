@@ -44,8 +44,10 @@ unzip -q al.vsix.zip -d "$EXT_DIR"
 
 
 # Ensure target directory exists
+
 TARGET_BIN_LINUX="$EXT_DIR/bin/linux"
 SRC_BIN_LINUX="$EXT_DIR/extension/bin/linux"
+SRC_ANALYZERS="$EXT_DIR/extension/bin/Analyzers"
 mkdir -p "$TARGET_BIN_LINUX"
 
 # Copy alc compiler
@@ -58,7 +60,8 @@ else
   exit 1
 fi
 
-# Copy analyzers to bin/linux directory if present
+
+# Copy analyzers to bin/linux directory if present (from extension/bin/Analyzers)
 ANALYZERS=(
   "Microsoft.Dynamics.Nav.CodeCop.dll"
   "Microsoft.Dynamics.Nav.UICop.dll"
@@ -66,11 +69,11 @@ ANALYZERS=(
   "Microsoft.Dynamics.Nav.PerTenantExtensionCop.dll"
 )
 for dll in "${ANALYZERS[@]}"; do
-  if [ -f "$SRC_BIN_LINUX/$dll" ]; then
-    cp -f "$SRC_BIN_LINUX/$dll" "$TARGET_BIN_LINUX/$dll"
+  if [ -f "$SRC_ANALYZERS/$dll" ]; then
+    cp -f "$SRC_ANALYZERS/$dll" "$TARGET_BIN_LINUX/$dll"
     echo "Copied $dll to $TARGET_BIN_LINUX"
   else
-    echo "$dll not found in $SRC_BIN_LINUX, skipping."
+    echo "$dll not found in $SRC_ANALYZERS, skipping."
   fi
 done
 
