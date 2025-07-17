@@ -4,3 +4,4 @@ firewall:
     - marketplace.visualstudio.com
     - dynamicssmb2.pkgs.visualstudio.com
     - pkgs.dev.azure.com
+    - gh.io

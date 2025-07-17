@@ -28,15 +28,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y jq wget curl unzip mono-complete file
 
+
       - name: Install AL Compiler
         run: |
-          chmod +x scripts/setup-al-compiler.sh
-          ./scripts/setup-al-compiler.sh
+          chmod +x .github/scripts/setup-al-compiler.sh
+          .github/scripts/setup-al-compiler.sh
 
       - name: Restore BC Symbols
         run: |
-          chmod +x scripts/restore-symbols.sh
-          ./scripts/restore-symbols.sh .
+          chmod +x .github/scripts/restore-symbols.sh
+          .github/scripts/restore-symbols.sh .
 
       - name: Setup verification file
         run: |
