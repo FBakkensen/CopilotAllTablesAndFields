@@ -15,6 +15,11 @@ make build          # Cross-platform build using AL compiler
 make clean          # Remove build artifacts
 ```
 
+### Build Output Analysis
+- Build output is captured in `build.log` at the project root
+- After running `make build`, examine `build.log` for detailed compiler output, errors, warnings, and build status
+- Use `build.log` to diagnose compilation issues and verify successful builds
+
 ## Project Overview
 This is a Microsoft Dynamics 365 Business Central AL extension that provides a natural language interface for exploring Business Central data using Azure OpenAI. The extension implements a Copilot capability that allows users to query tables, fields, and data through conversational AI.
 
