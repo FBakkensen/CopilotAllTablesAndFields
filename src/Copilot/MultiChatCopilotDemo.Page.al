@@ -233,6 +233,8 @@ page 51399 "Multi-Chat Copilot Demo"
         RebuildConversationContext();
         AOAIChatMessages.AddUserMessage(UserMessage);
 
+        RegisterFunctions();
+
         AzureOpenAI.GenerateChatCompletion(AOAIChatMessages, AOAIChatCompletionParams, AOAIOperationResponse);
 
         if AOAIOperationResponse.IsSuccess() then begin
@@ -319,5 +321,17 @@ page 51399 "Multi-Chat Copilot Demo"
         if ResponseTimePos > 0 then
             exit(CopyStr(Response, 1, ResponseTimePos - 1));
         exit(Response);
+    end;
+
+    local procedure RegisterFunctions()
+    var
+        GetTablesFunction: Codeunit "Get Tables Function";
+        GetFieldsFunction: Codeunit "Get Fields Function";
+        GetDataFunction: Codeunit "Get Data Function";
+    begin
+        AOAIChatMessages.AddTool(GetTablesFunction);
+        AOAIChatMessages.AddTool(GetFieldsFunction);
+        AOAIChatMessages.AddTool(GetDataFunction);
+        AOAIChatMessages.SetToolInvokePreference(Enum::"AOAI Tool Invoke Preference"::Automatic);
     end;
 }
