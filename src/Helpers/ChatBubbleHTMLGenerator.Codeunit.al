@@ -29,6 +29,7 @@ codeunit 51321 "Chat Bubble HTML Generator"
         BubbleHTML: TextBuilder;
         MessageTypeClass: Text;
         MessageTime: Text;
+        MessageContentText: Text;
     begin
         MessageTypeClass := GetMessageTypeClass(ChatRecord."Message Type");
         MessageTime := Format(ChatRecord."Message DateTime", 0, '<Hours24,2>:<Minutes,2>');
@@ -41,7 +42,8 @@ codeunit 51321 "Chat Bubble HTML Generator"
             BubbleHTML.Append('<div class="message-type">' + ChatRecord."Message Type" + '</div>');
 
         BubbleHTML.Append('<div class="message-content">');
-        BubbleHTML.Append(FormatMessageContent(ChatRecord."Message Text"));
+        MessageContentText := ChatRecord.GetMessageContent();
+        BubbleHTML.Append(FormatMessageContent(MessageContentText));
         BubbleHTML.Append('</div>');
 
         BubbleHTML.Append('<div class="message-time">' + MessageTime + '</div>');
@@ -66,21 +68,31 @@ codeunit 51321 "Chat Bubble HTML Generator"
     end;
 
     local procedure FormatMessageContent(MessageText: Text): Text
-    var
-        FormattedText: Text;
     begin
-        // Basic HTML escaping and formatting
-        FormattedText := MessageText;
-        FormattedText := FormattedText.Replace('&', '&amp;');
-        FormattedText := FormattedText.Replace('<', '&lt;');
-        FormattedText := FormattedText.Replace('>', '&gt;');
-        FormattedText := FormattedText.Replace('"', '&quot;');
-        FormattedText := FormattedText.Replace('''', '&#39;');
+        // AI now provides HTML directly, so just return as-is
+        // Only basic sanitization for safety
+        exit(SanitizeAIHTML(MessageText));
+    end;
 
-        // Convert line breaks to HTML
-        FormattedText := FormattedText.Replace('\n', '<br>');
+    local procedure SanitizeAIHTML(InputText: Text): Text
+    var
+        Result: Text;
+    begin
+        Result := InputText;
 
-        exit(FormattedText);
+        // Basic safety - remove potentially dangerous tags
+        Result := Result.Replace('<script', '&lt;script');
+        Result := Result.Replace('<iframe', '&lt;iframe');
+        Result := Result.Replace('<object', '&lt;object');
+        Result := Result.Replace('<embed', '&lt;embed');
+        Result := Result.Replace('<form', '&lt;form');
+
+        // Ensure line breaks for any remaining raw text
+        Result := Result.Replace('\r\n', '<br/>');
+        Result := Result.Replace('\n', '<br/>');
+        Result := Result.Replace('\r', '<br/>');
+
+        exit(Result);
     end;
 
     local procedure GetHTMLHeader(): Text
@@ -135,13 +147,15 @@ codeunit 51321 "Chat Bubble HTML Generator"
         CSS.Append('.system-message { justify-content: center; }');
 
         // Chat bubble styles
-        CSS.Append('.message-bubble { max-width: 70%; padding: 12px 16px; border-radius: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; animation: fadeIn 0.3s ease-in; }');
+        CSS.Append('.message-bubble { max-width: 70%; padding: 12px 16px; border-radius: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; animation: fadeIn 0.3s ease-in; word-break: break-word; overflow-wrap: break-word; }');
 
         // User message styling (right side, blue)
         CSS.Append('.user-message .message-bubble { background: linear-gradient(135deg, #007acc 0%, #0066aa 100%); color: white; border-bottom-right-radius: 4px; }');
 
         // Assistant message styling (left side, white/gray)
         CSS.Append('.assistant-message .message-bubble { background: #ffffff; color: #333; border: 1px solid #e0e0e0; border-bottom-left-radius: 4px; }');
+        CSS.Append('.assistant-message .message-content code { background-color: #f5f5f5; border: 1px solid #ddd; }');
+        CSS.Append('.assistant-message .message-content pre { background-color: #f5f5f5; border: 1px solid #ddd; }');
 
         // System message styling (center, yellow/orange)
         CSS.Append('.system-message .message-bubble { background: linear-gradient(135deg, #ffa726 0%, #ff8f00 100%); color: white; border-radius: 12px; max-width: 50%; }');
@@ -150,7 +164,21 @@ codeunit 51321 "Chat Bubble HTML Generator"
         CSS.Append('.message-type { font-size: 11px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }');
 
         // Message content
-        CSS.Append('.message-content { line-height: 1.4; word-wrap: break-word; }');
+        CSS.Append('.message-content { line-height: 1.4; word-wrap: break-word; white-space: normal; word-break: break-word; overflow-wrap: break-word; }');
+        CSS.Append('.message-content h1, .message-content h2, .message-content h3 { font-size: 1.3em; font-weight: bold; margin: 0.8em 0 0.4em 0; word-break: break-word; color: inherit; }');
+        CSS.Append('.message-content h1 { font-size: 1.4em; }');
+        CSS.Append('.message-content h2 { font-size: 1.3em; }');
+        CSS.Append('.message-content h3 { font-size: 1.2em; }');
+        CSS.Append('.message-content p { margin: 0.5em 0; word-break: break-word; line-height: 1.5; }');
+        CSS.Append('.message-content ul, .message-content ol { margin: 0.5em 0; padding-left: 1.2em; }');
+        CSS.Append('.message-content li { margin: 0.3em 0; line-height: 1.4; }');
+        CSS.Append('.message-content ul li { list-style-type: disc; }');
+        CSS.Append('.message-content ol li { list-style-type: decimal; }');
+        CSS.Append('.message-content strong, .message-content b { font-weight: bold; color: inherit; }');
+        CSS.Append('.message-content em, .message-content i { font-style: italic; }');
+        CSS.Append('.message-content code { background-color: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px; font-family: "Courier New", monospace; font-size: 0.9em; }');
+        CSS.Append('.message-content pre { background-color: rgba(0,0,0,0.1); padding: 8px; border-radius: 6px; margin: 0.5em 0; overflow-x: auto; }');
+        CSS.Append('.message-content pre code { background-color: transparent; padding: 0; }');
 
         // Message time
         CSS.Append('.message-time { font-size: 10px; opacity: 0.7; margin-top: 6px; text-align: right; }');

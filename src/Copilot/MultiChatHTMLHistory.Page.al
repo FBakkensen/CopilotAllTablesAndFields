@@ -63,7 +63,13 @@ page 51397 "Multi-Chat HTML History"
 
         if SourceChatBuffer.FindSet() then
             repeat
-                TempChatBuffer := SourceChatBuffer;
+                TempChatBuffer.Init();
+                TempChatBuffer."Entry No." := SourceChatBuffer."Entry No.";
+                TempChatBuffer."Session ID" := SourceChatBuffer."Session ID";
+                TempChatBuffer."Message Type" := SourceChatBuffer."Message Type";
+                TempChatBuffer."Message Text" := SourceChatBuffer."Message Text";
+                TempChatBuffer."Message DateTime" := SourceChatBuffer."Message DateTime";
+                TempChatBuffer."Message Content" := SourceChatBuffer."Message Content"; // Copy blob field explicitly
                 TempChatBuffer.Insert();
             until SourceChatBuffer.Next() = 0;
 

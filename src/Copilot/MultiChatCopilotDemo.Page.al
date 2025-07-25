@@ -170,7 +170,25 @@ page 51399 "Multi-Chat Copilot Demo"
             'You are a helpful AI assistant for Microsoft Dynamics 365 Business Central. ' +
             'You can help users understand Business Central functionality, answer questions about data, ' +
             'and provide guidance on using the system. Keep your responses concise but informative. ' +
-            'Remember the conversation context and refer back to previous messages when relevant.'
+            'Remember the conversation context and refer back to previous messages when relevant. ' +
+            '' +
+            'IMPORTANT: Format your responses using HTML tags directly. Do NOT use markdown. Use this HTML structure:' +
+            '' +
+            '- For headings: <h1>Main Title</h1>, <h2>Section Title</h2>, <h3>Subsection</h3>' +
+            '- For paragraphs: <p>Your paragraph text here</p>' +
+            '- For bold text: <strong>important text</strong>' +
+            '- For italic text: <em>emphasized text</em>' +
+            '- For lists: <ul><li>Item 1</li><li>Item 2</li></ul>' +
+            '- For numbered lists: <ol><li>First item</li><li>Second item</li></ol>' +
+            '- For line breaks: <br/>' +
+            '' +
+            'Example response format:' +
+            '<h1>What is Business Central?</h1>' +
+            '<p><strong>Microsoft Dynamics 365 Business Central</strong> is an integrated enterprise resource planning (ERP) solution.</p>' +
+            '<h2>Key Features</h2>' +
+            '<ul><li>Financial Management</li><li>Sales and Service</li><li>Operations Management</li></ul>' +
+            '' +
+            'Always respond with properly formatted HTML. Do not include response time or technical metadata.'
         );
     end;
 
@@ -189,9 +207,11 @@ page 51399 "Multi-Chat Copilot Demo"
         AddChatMessage('User', UserMessage, CurrentDateTime);
 
         // Get AI response with full conversation context
-        if GetAIResponse(UserMessage, AIResponse) then
-            AddChatMessage('Assistant', AIResponse, CurrentDateTime)
-        else
+        if GetAIResponse(UserMessage, AIResponse) then begin
+            AIResponse := RemoveResponseTime(AIResponse);
+            // Add formatted HTML response
+            AddChatMessage('Assistant', AIResponse, CurrentDateTime);
+        end else
             AddChatMessage('System', 'Error getting AI response: ' + ErrorText, CurrentDateTime);
 
         CurrPage.Update();
@@ -245,14 +265,14 @@ page 51399 "Multi-Chat Copilot Demo"
         TempLocalChatBuffer.SetCurrentKey("Session ID", "Message DateTime");
         TempLocalChatBuffer.SetRange("Session ID", SessionId);
 
-        // Rebuild conversation from chat buffer (excluding system messages as they're already added)
+        // Rebuild conversation from chat buffer (excluding system messages)
         if TempLocalChatBuffer.FindSet() then
             repeat
                 case TempLocalChatBuffer."Message Type" of
                     'User':
-                        AOAIChatMessages.AddUserMessage(TempLocalChatBuffer."Message Text");
+                        AOAIChatMessages.AddUserMessage(TempLocalChatBuffer.GetMessageContent());
                     'Assistant':
-                        AOAIChatMessages.AddAssistantMessage(TempLocalChatBuffer."Message Text");
+                        AOAIChatMessages.AddAssistantMessage(TempLocalChatBuffer.GetMessageContent());
                 // Skip 'System' messages as the initial system message is already added
                 end;
             until TempLocalChatBuffer.Next() = 0;
@@ -264,7 +284,7 @@ page 51399 "Multi-Chat Copilot Demo"
         TempChatBuffer."Entry No." += 1;
         TempChatBuffer."Session ID" := SessionId;
         TempChatBuffer."Message Type" := MessageType;
-        TempChatBuffer."Message Text" := CopyStr(MessageText, 1, MaxStrLen(TempChatBuffer."Message Text"));
+        TempChatBuffer.SetMessageContent(MessageText); // Use new blob-based method
         TempChatBuffer."Message DateTime" := MessageDateTime;
         TempChatBuffer.Insert();
 
@@ -289,5 +309,15 @@ page 51399 "Multi-Chat Copilot Demo"
 
         AddChatMessage('System', 'Conversation cleared. How can I help you?', CurrentDateTime);
         CurrPage.Update();
+    end;
+
+    local procedure RemoveResponseTime(Response: Text): Text
+    var
+        ResponseTimePos: Integer;
+    begin
+        ResponseTimePos := StrPos(Response, ' [Response time:');
+        if ResponseTimePos > 0 then
+            exit(CopyStr(Response, 1, ResponseTimePos - 1));
+        exit(Response);
     end;
 }
