@@ -23,7 +23,7 @@ page 51399 "Multi-Chat Copilot Demo"
         }
         area(Content)
         {
-            part(ChatHistory; "Multi-Chat History SubPage")
+            part(ChatHistory; "Multi-Chat HTML History")
             {
                 ApplicationArea = All;
                 Caption = 'Conversation History';

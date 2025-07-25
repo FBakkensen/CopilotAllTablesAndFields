@@ -41,6 +41,23 @@ page 51300 "Data Explorer Prompt"
                     trigger ControlAddInReady(callbackUrl: Text)
                     begin
                         CurrPage.HTMLViewer.Navigate('about:blank');
+                        IsControlAddInReady := true;
+                        if ResponseReceived then
+                            UpdateHTMLContent();
+                    end;
+
+                    trigger DocumentReady()
+                    begin
+                        // Document is ready, can now safely set content
+                    end;
+
+                    trigger Callback(data: Text)
+                    begin
+                        // Handle any callbacks if needed
+                    end;
+
+                    trigger Refresh(callbackUrl: Text)
+                    begin
                         if ResponseReceived then
                             UpdateHTMLContent();
                     end;
@@ -174,6 +191,7 @@ Format the output as proper JSON with proper indentation and structure.';
         UserPrompt: Text;
         ResponseHTML: Text;
         ResponseReceived: Boolean;
+        IsControlAddInReady: Boolean;
         NoCapabilityErr: Label 'The Data Explorer capability is not enabled. Please contact your administrator.';
         ProcessingErr: Label 'An error occurred while processing your request: %1', Comment = '%1 = Error message details';
         ErrorFormatTxt: Label '<p style="color: red;">%1</p>', Locked = true;
@@ -218,6 +236,9 @@ Format the output as proper JSON with proper indentation and structure.';
 
     local procedure UpdateHTMLContent()
     begin
+        if not IsControlAddInReady then
+            exit;
+
         CurrPage.HTMLViewer.SetContent(ResponseHTML);
     end;
 }
