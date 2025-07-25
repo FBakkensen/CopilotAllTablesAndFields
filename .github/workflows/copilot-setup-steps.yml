@@ -39,14 +39,6 @@ jobs:
           chmod +x .github/scripts/restore-symbols.sh
           .github/scripts/restore-symbols.sh .
 
-      - name: Setup verification file
-        run: |
-          # Create a marker file to indicate successful setup
-          echo "AL Development Environment Ready" > .copilot-environment-ready
-          echo "Setup completed at: $(date)" >> .copilot-environment-ready
-          echo "AL Compiler: Available at $(which alc)" >> .copilot-environment-ready
-          echo "Symbols restored: $(ls -1 .alpackages/*.app 2>/dev/null | wc -l) files" >> .copilot-environment-ready
-
       - name: Display environment summary
         run: |
           echo "=== Copilot AL Development Environment ==="
