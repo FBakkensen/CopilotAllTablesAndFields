@@ -12,6 +12,14 @@ pageextension 51300 "Business Manager RC Ext" extends "Business Manager Role Cen
                 Image = Sparkle;
                 RunObject = page "Data Explorer Prompt";
             }
+            action("Multi-Chat Demo")
+            {
+                ApplicationArea = All;
+                Caption = 'Multi-Chat Copilot Demo';
+                ToolTip = 'Experience multi-turn conversations with AI using Azure OpenAI chat completions';
+                Image = ElectronicDoc;
+                RunObject = page "Multi-Chat Copilot Demo";
+            }
             action("Data Explorer Setup")
             {
                 ApplicationArea = All;
