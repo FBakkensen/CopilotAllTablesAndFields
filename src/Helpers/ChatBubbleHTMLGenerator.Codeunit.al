@@ -23,11 +23,10 @@ codeunit 51321 "Chat Bubble HTML Generator"
             MessageObj := MessageToken.AsObject();
 
             // Filter by session ID
-            if MessageObj.Get('sessionId', SessionIdToken) then begin
+            if MessageObj.Get('sessionId', SessionIdToken) then
                 if Evaluate(MessageSessionId, SessionIdToken.AsValue().AsText()) then
                     if MessageSessionId = SessionId then
                         HTMLContent.Append(GenerateChatBubbleFromJson(MessageObj));
-            end;
         end;
 
         HTMLContent.Append(GetHTMLFooter());
@@ -61,10 +60,9 @@ codeunit 51321 "Chat Bubble HTML Generator"
             MessageContentText := MessageTextToken.AsValue().AsText();
 
         // Extract and format message time
-        if MessageObj.Get('messageDateTime', MessageDateTimeToken) then begin
+        if MessageObj.Get('messageDateTime', MessageDateTimeToken) then
             if Evaluate(MessageDateTime, MessageDateTimeToken.AsValue().AsText()) then
                 MessageTime := Format(MessageDateTime, 0, '<Hours24,2>:<Minutes,2>');
-        end;
 
         MessageTypeClass := GetMessageTypeClass(MessageType);
 

@@ -28,6 +28,14 @@ pageextension 51300 "Business Manager RC Ext" extends "Business Manager Role Cen
                 Image = Setup;
                 RunObject = page "Data Explorer Setup";
             }
+            action("ModernChatInterface")
+            {
+                ApplicationArea = All;
+                Caption = 'Modern Data Explorer Chat (POC)';
+                ToolTip = 'Open the modern chat interface for exploring Business Central data';
+                Image = SparkleFilled;
+                RunObject = page "Modern Chat Interface";
+            }
         }
     }
 }

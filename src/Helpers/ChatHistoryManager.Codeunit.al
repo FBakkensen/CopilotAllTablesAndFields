@@ -6,7 +6,7 @@ codeunit 51322 "Chat History Manager"
         ChatHistoryJson: JsonObject;
 
     /// <summary>
-    /// Initialize a new chat session or load existing session data
+    /// Initialize a new chat session or load existing session
     /// </summary>
     /// <param name="SessionId">The session identifier</param>
     procedure InitializeSession(SessionId: Guid)
@@ -153,11 +153,10 @@ codeunit 51322 "Chat History Manager"
 
         foreach MessageToken in AllMessages do begin
             MessageObj := MessageToken.AsObject();
-            if MessageObj.Get('messageDateTime', MessageDateTimeToken) then begin
+            if MessageObj.Get('messageDateTime', MessageDateTimeToken) then
                 if Evaluate(MessageDateTime, MessageDateTimeToken.AsValue().AsText()) then
                     if (MessageDateTime >= FromDateTime) and (MessageDateTime <= ToDateTime) then
                         FilteredMessages.Add(MessageToken);
-            end;
         end;
 
         exit(FilteredMessages);
@@ -197,9 +196,8 @@ codeunit 51322 "Chat History Manager"
         if not ChatHistoryJson.Get('sessions', SessionsToken) then begin
             Clear(SessionsObj);
             ChatHistoryJson.Add('sessions', SessionsObj);
-        end else begin
+        end else
             SessionsObj := SessionsToken.AsObject();
-        end;
 
         // Check if session exists, if not create it
         if not SessionsObj.Contains(Format(SessionId)) then begin
@@ -246,15 +244,13 @@ codeunit 51322 "Chat History Manager"
             MessagesList.Add(MessageToken);
 
         // Simple bubble sort by datetime (ascending)
-        for i := 1 to MessagesList.Count() - 1 do begin
-            for j := 1 to MessagesList.Count() - i do begin
+        for i := 1 to MessagesList.Count() - 1 do
+            for j := 1 to MessagesList.Count() - i do
                 if CompareMessageDateTime(MessagesList.Get(j), MessagesList.Get(j + 1)) > 0 then begin
                     TempToken := MessagesList.Get(j);
                     MessagesList.Set(j, MessagesList.Get(j + 1));
                     MessagesList.Set(j + 1, TempToken);
                 end;
-            end;
-        end;
 
         // Convert back to array
         foreach MessageToken in MessagesList do
@@ -285,11 +281,10 @@ codeunit 51322 "Chat History Manager"
 
         if DateTime1 < DateTime2 then
             exit(-1)
-        else begin
+        else
             if DateTime1 > DateTime2 then
                 exit(1)
             else
                 exit(0);
-        end;
     end;
 }
