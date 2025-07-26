@@ -2,48 +2,80 @@ codeunit 51321 "Chat Bubble HTML Generator"
 {
     Access = Internal;
 
-    procedure GenerateChatHTML(var ChatBuffer: Record "Copilot Chat Buffer" temporary; SessionId: Guid): Text
+    /// <summary>
+    /// Generate HTML directly from JSON messages array
+    /// </summary>
+    /// <param name="JsonMessages">JSON array of messages</param>
+    /// <param name="SessionId">Session identifier for filtering</param>
+    /// <returns>Complete HTML content for chat display</returns>
+    procedure GenerateChatHTMLFromJson(JsonMessages: JsonArray; SessionId: Guid): Text
     var
-        TempChatRecord: Record "Copilot Chat Buffer" temporary;
         HTMLContent: TextBuilder;
+        MessageToken: JsonToken;
+        MessageObj: JsonObject;
+        SessionIdToken: JsonToken;
+        MessageSessionId: Guid;
     begin
         HTMLContent.Append(GetHTMLHeader());
 
-        // Copy and sort chat messages by datetime (descending)
-        TempChatRecord.Copy(ChatBuffer, true);
-        TempChatRecord.SetRange("Session ID", SessionId);
-        TempChatRecord.SetCurrentKey("Session ID", "Message DateTime");
-        TempChatRecord.Ascending(false); // Sort descending by Message DateTime
+        // Process messages in reverse order (most recent first)
+        foreach MessageToken in JsonMessages do begin
+            MessageObj := MessageToken.AsObject();
 
-        if TempChatRecord.FindSet() then
-            repeat
-                HTMLContent.Append(GenerateChatBubble(TempChatRecord));
-            until TempChatRecord.Next() = 0;
+            // Filter by session ID
+            if MessageObj.Get('sessionId', SessionIdToken) then begin
+                if Evaluate(MessageSessionId, SessionIdToken.AsValue().AsText()) then
+                    if MessageSessionId = SessionId then
+                        HTMLContent.Append(GenerateChatBubbleFromJson(MessageObj));
+            end;
+        end;
 
         HTMLContent.Append(GetHTMLFooter());
 
         exit(HTMLContent.ToText());
     end;
 
-    local procedure GenerateChatBubble(ChatRecord: Record "Copilot Chat Buffer" temporary): Text
+    /// <summary>
+    /// Generate a chat bubble from JSON message object
+    /// </summary>
+    /// <param name="MessageObj">JSON object containing message data</param>
+    /// <returns>HTML string for the chat bubble</returns>
+    local procedure GenerateChatBubbleFromJson(MessageObj: JsonObject): Text
     var
         BubbleHTML: TextBuilder;
         MessageTypeClass: Text;
         MessageTime: Text;
         MessageContentText: Text;
+        MessageTypeToken: JsonToken;
+        MessageTextToken: JsonToken;
+        MessageDateTimeToken: JsonToken;
+        MessageDateTime: DateTime;
+        MessageType: Text[20];
     begin
-        MessageTypeClass := GetMessageTypeClass(ChatRecord."Message Type");
-        MessageTime := Format(ChatRecord."Message DateTime", 0, '<Hours24,2>:<Minutes,2>');
+        // Extract message type
+        if MessageObj.Get('messageType', MessageTypeToken) then
+            MessageType := CopyStr(MessageTypeToken.AsValue().AsText(), 1, 20);
+
+        // Extract message content
+        if MessageObj.Get('messageText', MessageTextToken) then
+            MessageContentText := MessageTextToken.AsValue().AsText();
+
+        // Extract and format message time
+        if MessageObj.Get('messageDateTime', MessageDateTimeToken) then begin
+            if Evaluate(MessageDateTime, MessageDateTimeToken.AsValue().AsText()) then
+                MessageTime := Format(MessageDateTime, 0, '<Hours24,2>:<Minutes,2>');
+        end;
+
+        MessageTypeClass := GetMessageTypeClass(MessageType);
 
         BubbleHTML.Append('<div class="message-container ' + MessageTypeClass + '">');
         BubbleHTML.Append('<div class="message-bubble">');
 
         // Add message type indicator for non-user messages
-        if ChatRecord."Message Type" <> 'User' then
-            BubbleHTML.Append('<div class="message-type">' + ChatRecord."Message Type" + '</div>');
+        if MessageType <> 'User' then
+            BubbleHTML.Append('<div class="message-type">' + MessageType + '</div>');
 
         BubbleHTML.Append('<div class="message-content">');
-        MessageContentText := ChatRecord.GetMessageContent();
         BubbleHTML.Append(FormatMessageContent(MessageContentText));
         BubbleHTML.Append('</div>');
 

@@ -2,8 +2,6 @@ page 51397 "Multi-Chat HTML History"
 {
     Caption = 'Chat History';
     PageType = CardPart;
-    SourceTable = "Copilot Chat Buffer";
-    SourceTableTemporary = true;
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
@@ -49,29 +47,24 @@ page 51397 "Multi-Chat HTML History"
     }
 
     var
-        TempChatBuffer: Record "Copilot Chat Buffer" temporary;
-        ChatBubbleGenerator: Codeunit "Chat Bubble HTML Generator";
+        ChatHistoryMgr: Codeunit "Chat History Manager";
+        ChatHistoryAdapter: Codeunit "Chat History Adapter";
         CurrentSessionId: Guid;
         ChatDataLoaded: Boolean;
         IsControlAddInReady: Boolean;
 
-    procedure LoadData(var SourceChatBuffer: Record "Copilot Chat Buffer" temporary; FilterSessionId: Guid)
+    /// <summary>
+    /// Load data from a JSON-based chat history manager
+    /// </summary>
+    /// <param name="SourceChatHistoryMgr">Source chat history manager with data</param>
+    /// <param name="FilterSessionId">Session ID to display</param>
+    procedure LoadDataFromJson(var SourceChatHistoryMgr: Codeunit "Chat History Manager"; FilterSessionId: Guid)
+    var
+        JsonText: Text;
     begin
-        // Copy the source data to our temporary buffer
-        TempChatBuffer.Reset();
-        TempChatBuffer.DeleteAll();
-
-        if SourceChatBuffer.FindSet() then
-            repeat
-                TempChatBuffer.Init();
-                TempChatBuffer."Entry No." := SourceChatBuffer."Entry No.";
-                TempChatBuffer."Session ID" := SourceChatBuffer."Session ID";
-                TempChatBuffer."Message Type" := SourceChatBuffer."Message Type";
-                TempChatBuffer."Message Text" := SourceChatBuffer."Message Text";
-                TempChatBuffer."Message DateTime" := SourceChatBuffer."Message DateTime";
-                TempChatBuffer."Message Content" := SourceChatBuffer."Message Content"; // Copy blob field explicitly
-                TempChatBuffer.Insert();
-            until SourceChatBuffer.Next() = 0;
+        // Import the complete history from source
+        JsonText := SourceChatHistoryMgr.ExportToJson();
+        ChatHistoryMgr.ImportFromJson(JsonText);
 
         CurrentSessionId := FilterSessionId;
         ChatDataLoaded := true;
@@ -90,7 +83,8 @@ page 51397 "Multi-Chat HTML History"
         if not IsControlAddInReady then
             exit;
 
-        HTMLContent := ChatBubbleGenerator.GenerateChatHTML(TempChatBuffer, CurrentSessionId);
+        // Generate HTML using the adapter
+        HTMLContent := ChatHistoryAdapter.GenerateHTMLFromJson(ChatHistoryMgr, CurrentSessionId);
         CurrPage.HTMLViewer.SetContent(HTMLContent);
     end;
 

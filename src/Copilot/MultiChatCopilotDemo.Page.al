@@ -3,8 +3,6 @@ page 51399 "Multi-Chat Copilot Demo"
     Caption = 'Multi-Chat Copilot Demo (POC)';
     PageType = PromptDialog;
     Extensible = false;
-    SourceTable = "Copilot Chat Buffer";
-    SourceTableTemporary = true;
     InherentEntitlements = X;
     InherentPermissions = X;
 
@@ -27,7 +25,6 @@ page 51399 "Multi-Chat Copilot Demo"
             {
                 ApplicationArea = All;
                 Caption = 'Conversation History';
-                SubPageLink = "Session ID" = field("Session ID");
             }
         }
     }
@@ -63,16 +60,17 @@ page 51399 "Multi-Chat Copilot Demo"
 
     trigger OnInit()
     begin
-        if not Rec.Get() then begin
-            Rec.Init();
-            Rec."Session ID" := CreateGuid();
-            Rec.Insert();
-        end;
+        // Initialize session ID
+        SessionId := CreateGuid();
+
+        // Initialize the JSON-based chat history
+        ChatHistoryMgr.InitializeSession(SessionId);
+
         InitializeAI();
     end;
 
     var
-        TempChatBuffer: Record "Copilot Chat Buffer" temporary;
+        ChatHistoryMgr: Codeunit "Chat History Manager";
         AzureOpenAI: Codeunit "Azure OpenAI";
         AOAIChatMessages: Codeunit "AOAI Chat Messages";
         AOAIChatCompletionParams: Codeunit "AOAI Chat Completion Params";
@@ -100,7 +98,6 @@ page 51399 "Multi-Chat Copilot Demo"
         if InitializeAIConnection() then begin
             SetupChatParameters();
             InitializeSystemMessage();
-            SessionId := Rec."Session ID";
             IsInitialized := true;
             AddChatMessage('System', 'AI Assistant initialized. How can I help you with Business Central today?', CurrentDateTime);
         end else
@@ -254,7 +251,13 @@ page 51399 "Multi-Chat Copilot Demo"
 
     local procedure RebuildConversationContext()
     var
-        TempLocalChatBuffer: Record "Copilot Chat Buffer" temporary;
+        JsonMessages: JsonArray;
+        MessageToken: JsonToken;
+        MessageObj: JsonObject;
+        MessageTypeToken: JsonToken;
+        MessageTextToken: JsonToken;
+        MessageType: Text;
+        MessageText: Text;
     begin
         // Clear existing conversation context
         Clear(AOAIChatMessages);
@@ -262,33 +265,32 @@ page 51399 "Multi-Chat Copilot Demo"
         // Add system message first
         InitializeSystemMessage();
 
-        // Copy from TempChatBuffer and sort by datetime to ensure proper order
-        TempLocalChatBuffer.Copy(TempChatBuffer, true);
-        TempLocalChatBuffer.SetCurrentKey("Session ID", "Message DateTime");
-        TempLocalChatBuffer.SetRange("Session ID", SessionId);
+        // Get messages from JSON history and rebuild conversation context
+        JsonMessages := ChatHistoryMgr.GetSessionMessages(SessionId);
 
-        // Rebuild conversation from chat buffer (excluding system messages)
-        if TempLocalChatBuffer.FindSet() then
-            repeat
-                case TempLocalChatBuffer."Message Type" of
-                    'User':
-                        AOAIChatMessages.AddUserMessage(TempLocalChatBuffer.GetMessageContent());
-                    'Assistant':
-                        AOAIChatMessages.AddAssistantMessage(TempLocalChatBuffer.GetMessageContent());
-                // Skip 'System' messages as the initial system message is already added
-                end;
-            until TempLocalChatBuffer.Next() = 0;
+        foreach MessageToken in JsonMessages do begin
+            MessageObj := MessageToken.AsObject();
+
+            if MessageObj.Get('messageType', MessageTypeToken) then
+                MessageType := MessageTypeToken.AsValue().AsText();
+
+            if MessageObj.Get('messageText', MessageTextToken) then
+                MessageText := MessageTextToken.AsValue().AsText();
+
+            case MessageType of
+                'User':
+                    AOAIChatMessages.AddUserMessage(MessageText);
+                'Assistant':
+                    AOAIChatMessages.AddAssistantMessage(MessageText);
+            // Skip 'System' messages as the initial system message is already added
+            end;
+        end;
     end;
 
     local procedure AddChatMessage(MessageType: Text[20]; MessageText: Text; MessageDateTime: DateTime)
     begin
-        TempChatBuffer.Init();
-        TempChatBuffer."Entry No." += 1;
-        TempChatBuffer."Session ID" := SessionId;
-        TempChatBuffer."Message Type" := MessageType;
-        TempChatBuffer.SetMessageContent(MessageText); // Use new blob-based method
-        TempChatBuffer."Message DateTime" := MessageDateTime;
-        TempChatBuffer.Insert();
+        // Add message to JSON-based chat history
+        ChatHistoryMgr.AddMessage(SessionId, MessageType, MessageText, MessageDateTime);
 
         // Keep conversation history for context (last 20 messages to manage token limits)
         ConversationHistory.Add(StrSubstNo(ConversationFormatMsg, MessageType, MessageText));
@@ -296,12 +298,14 @@ page 51399 "Multi-Chat Copilot Demo"
             ConversationHistory.RemoveAt(1);
 
         // Update the subpage with new data
-        CurrPage.ChatHistory.Page.LoadData(TempChatBuffer, SessionId);
+        CurrPage.ChatHistory.Page.LoadDataFromJson(ChatHistoryMgr, SessionId);
     end;
 
     local procedure ClearConversation()
     begin
-        TempChatBuffer.DeleteAll();
+        // Clear the JSON-based chat history
+        ChatHistoryMgr.ClearSession(SessionId);
+
         ConversationHistory.RemoveRange(1, ConversationHistory.Count);
         Clear(AOAIChatMessages);
         UserInputText := '';
