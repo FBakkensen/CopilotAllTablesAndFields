@@ -75,10 +75,17 @@ page 51398 "Modern Chat Interface"
             CurrPage.ChatControl.ShowTypingIndicator(true);
 
         // Get AI response
-        if GetAIResponse(UserMessage, AIResponse) then
-            AddChatMessage('Assistant', AIResponse, CurrentDateTime)
-        else
+        if GetAIResponse(UserMessage, AIResponse) then begin
+            // Hide typing indicator before showing response
+            if IsInterfaceReady then
+                CurrPage.ChatControl.ShowTypingIndicator(false);
+            AddChatMessage('Assistant', AIResponse, CurrentDateTime);
+        end else begin
+            // Hide typing indicator before showing error
+            if IsInterfaceReady then
+                CurrPage.ChatControl.ShowTypingIndicator(false);
             AddChatMessage('System', 'Error getting AI response. Please try again.', CurrentDateTime);
+        end;
     end;
 
     local procedure ClearChatHistory()

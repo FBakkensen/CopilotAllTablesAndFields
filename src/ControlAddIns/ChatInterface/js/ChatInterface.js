@@ -178,11 +178,16 @@ function showTypingIndicator() {
     typingDiv.className = 'typing-indicator';
     typingDiv.id = 'typingIndicator';
     typingDiv.innerHTML = `
-        <span>AI is thinking</span>
-        <div class="typing-dots">
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
-            <div class="typing-dot"></div>
+        <div class="typing-content">
+            <div class="typing-avatar">🤖</div>
+            <div class="typing-bubble">
+                <span class="typing-text">AI is thinking</span>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
+            </div>
         </div>
     `;
 
