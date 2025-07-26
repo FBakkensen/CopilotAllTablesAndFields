@@ -202,9 +202,21 @@ page 51398 "Modern Chat Interface"
             '- For lists: <ul><li>Item 1</li><li>Item 2</li></ul>' +
             '- For numbered lists: <ol><li>First item</li><li>Second item</li></ol>' +
             '- For line breaks: <br/>' +
-            '- For code: <code>inline code</code>' +
+            '- For inline code: <code>inline code</code>' +
+            '- For code blocks and tables: Use triple backticks ```' +
             '' +
-            'Always respond with properly formatted HTML. Keep responses conversational and helpful.'
+            'SPECIAL FORMATTING FOR TABLES AND DATA:' +
+            'When presenting tabular data (like sales orders, customer lists, financial data), format it as a pipe-separated table using triple backticks:' +
+            '```' +
+            'Header 1 | Header 2 | Header 3' +
+            'Value 1  | Value 2  | Value 3' +
+            'Value 4  | Value 5  | Value 6' +
+            '```' +
+            '' +
+            'This will be automatically formatted into a professional table with proper styling.' +
+            'Use this format whenever presenting structured data from Business Central.' +
+            '' +
+            'Always respond with properly formatted HTML and use code blocks for data tables. Keep responses conversational and helpful.'
         );
     end;
 

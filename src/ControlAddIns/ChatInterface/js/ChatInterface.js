@@ -8,6 +8,120 @@ var isProcessing = false;
 var typingIndicatorVisible = false;
 
 /**
+ * Process message content to handle code blocks and improve table formatting
+ * @param {string} content - The raw message content
+ * @returns {string} Processed HTML content
+ */
+function processMessageContent(content) {
+    if (!content) return content;
+
+    let processed = content;
+
+    // Handle triple backtick code blocks first (including potential language specifications)
+    processed = processed.replace(/```(\w+)?\n?([\s\S]*?)\n?```/g, function(match, language, code) {
+        const trimmedCode = code.trim();
+        const escapedCode = escapeHtml(trimmedCode);
+
+        // Check if this looks like a table (contains pipe characters in a structured way)
+        if (isTableContent(trimmedCode)) {
+            return formatAsTable(trimmedCode);
+        }
+
+        return `<div class="code-block">${escapedCode}</div>`;
+    });
+
+    // Handle single backtick inline code (but not if it's already inside HTML tags)
+    processed = processed.replace(/(?<!<[^>]*)`([^`\n]+)`(?![^<]*>)/g, function(match, code) {
+        const escapedCode = escapeHtml(code.trim());
+        return `<code>${escapedCode}</code>`;
+    });
+
+    // Handle pipe-separated tables that aren't already in code blocks
+    if (!processed.includes('<div class="code-block">') && !processed.includes('<div class="table-container">')) {
+        if (isTableContent(processed)) {
+            processed = formatAsTable(processed);
+        }
+    }
+
+    return processed;
+}
+
+/**
+ * Check if content looks like a table (pipe-separated values)
+ * @param {string} content - Content to check
+ * @returns {boolean} True if it looks like a table
+ */
+function isTableContent(content) {
+    const lines = content.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return false;
+
+    // Check if multiple lines contain pipe characters
+    const linesWithPipes = lines.filter(line => {
+        const trimmed = line.trim();
+        // Exclude separator lines (mostly dashes and pipes)
+        if (trimmed.match(/^\|[\s\-\|]*\|$/)) return false;
+        return trimmed.includes('|') && trimmed.split('|').length > 2;
+    });
+
+    // Must have at least 2 lines with pipes and at least 50% of lines should have pipes
+    return linesWithPipes.length >= 2 && (linesWithPipes.length / lines.length) >= 0.4;
+}
+
+/**
+ * Format pipe-separated content as an HTML table
+ * @param {string} content - Pipe-separated content
+ * @returns {string} HTML table
+ */
+function formatAsTable(content) {
+    const lines = content.split('\n')
+        .map(line => line.trim())
+        .filter(line => {
+            if (!line || !line.includes('|')) return false;
+            // Skip separator lines (lines that are mostly dashes and pipes)
+            return !line.match(/^\|[\s\-\|]*\|$/);
+        });
+
+    if (lines.length === 0) return content;
+
+    let tableHtml = '<div class="table-container"><table>';
+    let isFirstLine = true;
+
+    lines.forEach((line, index) => {
+        const cells = line.split('|')
+            .map(cell => cell.trim())
+            .filter((cell, cellIndex, array) => {
+                // Remove empty cells at start and end (common in pipe tables)
+                return !(cellIndex === 0 && cell === '') && !(cellIndex === array.length - 1 && cell === '');
+            });
+
+        if (cells.length === 0) return;
+
+        const tagName = isFirstLine ? 'th' : 'td';
+        const row = cells
+            .map(cell => `<${tagName}>${escapeHtml(cell)}</${tagName}>`)
+            .join('');
+
+        tableHtml += `<tr>${row}</tr>`;
+        isFirstLine = false;
+    });
+
+    tableHtml += '</table></div>';
+
+    return tableHtml;
+}
+
+/**
+ * Escape HTML characters to prevent XSS
+ * @param {string} text - Text to escape
+ * @returns {string} Escaped text
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
  * Send a message from the chat interface to AL
  */
 function sendMessage() {
@@ -73,7 +187,10 @@ function AddMessage(messageType, messageText, messageTime) {
     // Create message bubble
     const bubbleDiv = document.createElement('div');
     bubbleDiv.className = 'message-bubble';
-    bubbleDiv.innerHTML = messageText; // Using innerHTML to support HTML formatting from AI
+
+    // Process the message content to handle code blocks and tables
+    const processedMessage = processMessageContent(messageText);
+    bubbleDiv.innerHTML = processedMessage;
 
     // Create message meta information
     const metaDiv = document.createElement('div');

@@ -141,6 +141,19 @@ TOKEN-AWARE SMART FILTERING IS REQUIRED
 - Include inline CSS for professional presentation and readability
 - Make content accessible and well-organized
 
+**SPECIAL TABLE FORMATTING**: When presenting structured data (like table lists, field information, or record data), format it as pipe-separated tables using triple backticks for automatic professional table rendering:
+```
+Header 1 | Header 2 | Header 3
+Value 1  | Value 2  | Value 3
+Value 4  | Value 5  | Value 6
+```
+
+This format will be automatically rendered as a professional table with proper styling. Use this format for:
+- Table discovery results
+- Field information listings
+- Record data displays
+- Any structured Business Central data
+
 ## Alternative Formats (when requested)
 When users request specific formats (JSON, XML, CSV, YAML, plain text, markdown):
 - Still return HTML document structure

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Formatting Test</title>
+    <link rel="stylesheet" href="src/ControlAddIns/ChatInterface/css/ChatInterface.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+            <!-- Test message with pipe-separated table -->
+            <div class="message assistant">
+                <div class="message-bubble" id="testMessage">
+                    <p>Here is your sales data:</p>
+                    ```
+                    Order No. | Customer No. | Customer Name | Order Date | Status | Amount | Currency
+                    S-QUO1001 | 20000 | Trey Research | 2024-01-01 | Open | 0 |
+                    S-QUO1002 | 40000 | Alpine Ski House | 2024-01-01 | Open | 0 |
+                    S-INV102199 | 10000 | Adatum Corporation | 2024-01-01 | Open | 0 |
+                    S-INV102200 | 10000 | Adatum Corporation | 2024-01-01 | Open | 0 |
+                    S-INV102201 | 20000 | Trey Research | 2024-01-01 | Open | 0 |
+                    ```
+                    <p>Let me know if you'd like more details on a specific order!</p>
+                </div>
+                <div class="message-meta">
+                    <span class="message-sender">AI Assistant</span>
+                    <span>10:02</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="src/ControlAddIns/ChatInterface/js/ChatInterface.js"></script>
+    <script>
+        // Test the table formatting function
+        document.addEventListener('DOMContentLoaded', function() {
+            const testMessage = document.getElementById('testMessage');
+            const originalContent = testMessage.innerHTML;
+
+            // Apply our processing function
+            const processedContent = processMessageContent(originalContent);
+            testMessage.innerHTML = processedContent;
+
+            console.log('Original content:', originalContent);
+            console.log('Processed content:', processedContent);
+        });
+    </script>
+</body>
+</html>
