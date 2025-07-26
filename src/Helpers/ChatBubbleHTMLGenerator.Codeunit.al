@@ -9,10 +9,11 @@ codeunit 51321 "Chat Bubble HTML Generator"
     begin
         HTMLContent.Append(GetHTMLHeader());
 
-        // Copy and sort chat messages by datetime
+        // Copy and sort chat messages by datetime (descending)
         TempChatRecord.Copy(ChatBuffer, true);
         TempChatRecord.SetRange("Session ID", SessionId);
         TempChatRecord.SetCurrentKey("Session ID", "Message DateTime");
+        TempChatRecord.Ascending(false); // Sort descending by Message DateTime
 
         if TempChatRecord.FindSet() then
             repeat
