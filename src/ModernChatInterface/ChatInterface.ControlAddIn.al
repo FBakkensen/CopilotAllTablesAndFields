@@ -7,9 +7,9 @@ controladdin "Chat Interface"
     VerticalStretch = true;
     HorizontalStretch = true;
 
-    Scripts = 'src/ControlAddIns/ChatInterface/js/ChatInterface.js';
-    StyleSheets = 'src/ControlAddIns/ChatInterface/css/ChatInterface.css';
-    StartupScript = 'src/ControlAddIns/ChatInterface/js/startup.js';
+    Scripts = 'src/ModernChatInterface/ChatInterface/js/ChatInterface.js';
+    StyleSheets = 'src/ModernChatInterface/ChatInterface/css/ChatInterface.css';
+    StartupScript = 'src/ModernChatInterface/ChatInterface/js/startup.js';
 
     /// <summary>
     /// Event triggered when a message is sent from the chat interface
